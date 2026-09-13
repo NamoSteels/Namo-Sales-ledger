@@ -341,8 +341,9 @@
     html += '<div class="field"><label>Bill photo (optional)</label><input name="image" type="file" accept="image/*"></div>';
 
     html += '<div class="calc-block">';
-    html += '<div class="calc-line"><span>Basic amount</span><span id="calc-basic">₹0</span></div>';
-    html += '<div class="calc-line"><span>GST (18%, auto)</span><span id="calc-gst">₹0</span></div>';
+    html += '<div class="tick-row"><label class="tick-label"><input type="checkbox" name="gstEnabled" id="gst-enabled" checked> GST 18%</label></div>';
+    html += '<div class="calc-line sub"><span>Basic amount</span><span id="calc-basic">₹0</span></div>';
+    html += '<div class="calc-line sub"><span>GST amount</span><span id="calc-gst">₹0</span></div>';
 
     html += '<div class="tick-row"><label class="tick-label"><input type="checkbox" name="tcsEnabled" id="tcs-enabled"> TCS %</label><input name="tcsPercent" id="tcs-percent" type="number" step="0.01" placeholder="e.g. 0.1" disabled></div>';
     html += '<div class="calc-line sub"><span>TCS amount (added)</span><span id="calc-tcs">₹0</span></div>';
@@ -410,7 +411,8 @@
 
   function computeBillTotals(fd){
     const basic = Number(fd.get('basicAmount'))||0;
-    const gst = basic * 0.18;
+    const gstOn = fd.get('gstEnabled')==='on';
+    const gst = gstOn ? basic * 0.18 : 0;
     const tcsOn = fd.get('tcsEnabled')==='on';
     const tds1On = fd.get('tds1Enabled')==='on';
     const tds2On = fd.get('tds2Enabled')==='on';
@@ -421,7 +423,7 @@
     const tds1Amt = tds1On ? basic * (tds1Pct/100) : 0;
     const tds2Amt = tds2On ? basic * (tds2Pct/100) : 0;
     const net = basic + gst + tcsAmt - tds1Amt - tds2Amt;
-    return { basic, gst, tcsOn, tcsPct, tcsAmt, tds1On, tds1Pct, tds1Amt, tds2On, tds2Pct, tds2Amt, net };
+    return { basic, gstOn, gst, tcsOn, tcsPct, tcsAmt, tds1On, tds1Pct, tds1Amt, tds2On, tds2Pct, tds2Amt, net };
   }
 
   function wireBillCalc(bf){
