@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Namo Steels — Sales Ledger</title>
+<meta name="theme-color" content="#1c1b19">
+<meta name="description" content="Sales ledger for Namo Steels — party balances, bills and receivables">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Namo Ledger">
+</head>
+<body>
+<style>
+  :root{
+    --bg:#1c1b19;
+    --surface:#242220;
+    --surface-2:#2d2a26;
+    --line:#3c3833;
+    --text:#ece7dd;
+    --muted:#a39c8f;
+    --copper:#c2793f;
+    --copper-dim:#8f5b32;
+    --green:#7a9b74;
+    --red:#bd5b4a;
+    --font-head:Georgia, 'Times New Roman', serif;
+    --font-body:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--font-body);
+    font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  #app{max-width:640px; margin:0 auto; padding:20px 16px 60px;}
+  header.top{margin-bottom:18px;}
+  header.top h1{font-family:var(--font-head); font-weight:600; font-size:22px; letter-spacing:0.2px;}
+  header.top p{color:var(--muted); font-size:12.5px; margin-top:2px;}
+
+  nav.tabs{display:flex; border-bottom:1px solid var(--line); margin-bottom:20px;}
+  nav.tabs button{
+    background:none; border:none; color:var(--muted); font-family:var(--font-body);
+    font-size:13.5px; font-weight:500; padding:10px 14px 10px 0; margin-right:14px;
+    cursor:pointer; border-bottom:2px solid transparent; position:relative; top:1px;
+  }
+  nav.tabs button.active{color:var(--text); border-bottom-color:var(--copper);}
+
+  .stat-row{display:flex; gap:10px; margin-bottom:22px;}
+  .stat{flex:1; background:var(--surface); border:1px solid var(--line); padding:14px 14px 12px;}
+  .stat .label{color:var(--muted); font-size:11.5px; text-transform:none;}
+  .stat .value{font-family:var(--font-head); font-size:22px; font-variant-numeric:tabular-nums; margin-top:4px;}
+  .stat.warn .value{color:var(--red);}
+
+  .section-title{font-family:var(--font-head); font-size:15px; font-weight:600; margin:22px 0 10px; color:var(--text);}
+  .section-title:first-child{margin-top:0;}
+
+  .row-list{border-top:1px solid var(--line);}
+  .row-item{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:11px 2px; border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .row-item:hover{background:var(--surface);}
+  .row-item .name{font-weight:500;}
+  .row-item .sub{color:var(--muted); font-size:12px; margin-top:1px;}
+  .row-item .amt{font-variant-numeric:tabular-nums; font-weight:600;}
+  .amt.pos{color:var(--copper);}
+  .amt.zero{color:var(--muted); font-weight:400;}
+  .amt.neg{color:var(--green);}
+
+  .empty{color:var(--muted); font-size:13px; padding:16px 2px; font-style:normal;}
+
+  form.panel{background:var(--surface); border:1px solid var(--line); padding:14px; margin-bottom:20px;}
+  form.panel .field{margin-bottom:10px;}
+  form.panel label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px;}
+  form.panel input, form.panel select, form.panel textarea{
+    width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text);
+    padding:8px 9px; font-family:var(--font-body); font-size:13.5px; font-variant-numeric:tabular-nums;
+  }
+  form.panel input:focus, form.panel select:focus, form.panel textarea:focus{outline:1px solid var(--copper);}
+  form.panel input[type=checkbox]{width:auto; accent-color:var(--copper);}
+  .calc-block{background:var(--surface-2); border:1px solid var(--line); padding:10px 12px; margin:10px 0;}
+  .calc-line{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); padding:3px 0; font-variant-numeric:tabular-nums;}
+  .calc-line.sub{padding-bottom:8px; border-bottom:1px solid var(--line); margin-bottom:2px;}
+  .calc-line.net{border-top:1px solid var(--line); margin-top:6px; padding-top:8px; color:var(--text); font-weight:600; font-size:14px;}
+  .tick-row{display:flex; align-items:center; gap:10px; padding:8px 0 2px;}
+  .tick-row .tick-label{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text); flex-shrink:0; width:64px;}
+  .tick-row input[type=number]{width:110px; padding:6px 8px;}
+  .tick-row input[type=number]:disabled{opacity:0.4;}
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  button.primary{
+    background:var(--copper); color:#1c1b19; border:none; padding:9px 16px;
+    font-family:var(--font-body); font-weight:600; font-size:13.5px; cursor:pointer; margin-top:2px;
+  }
+  button.primary:disabled{opacity:0.5; cursor:default;}
+  button.ghost{
+    background:none; border:1px solid var(--line); color:var(--muted); padding:8px 14px;
+    font-size:12.5px; cursor:pointer; font-family:var(--font-body);
+  }
+
+  .detail{background:var(--surface); border:1px solid var(--copper-dim); padding:14px; margin:-1px 0 14px;}
+  .detail-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;}
+  .detail-head h3{font-family:var(--font-head); font-size:16px;}
+  .detail-head .bal{font-variant-numeric:tabular-nums; font-weight:600;}
+  .ledger-line{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .ledger-line .l-date{color:var(--muted); width:66px; flex-shrink:0;}
+  .ledger-line .l-desc{flex:1;}
+  .ledger-line .l-amt{font-variant-numeric:tabular-nums; text-align:right; width:80px;}
+  .ledger-line .l-run{font-variant-numeric:tabular-nums; text-align:right; width:80px; color:var(--muted);}
+  .quick-actions{display:flex; gap:8px; margin-top:10px;}
+  .thumb{width:34px; height:34px; object-fit:cover; border:1px solid var(--line); margin-right:8px; flex-shrink:0;}
+  .loading{color:var(--muted); padding:20px 2px; font-size:13px;}
+</style>
+
+<div id="app"><div class="loading">Loading ledger…</div></div>
+
+<script>
+(function(){
+  const app = document.getElementById('app');
+  let state = { parties: [], bills: [], payments: [], tab: 'dashboard', openParty: null, loaded:false, loadError:null };
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function money(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
+  function fmtDate(d){ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}); }
+
+  // --- Storage: browser localStorage, namespaced under NAMO_LEDGER_ ---
+  const STORE_PREFIX = 'NAMO_LEDGER_';
+  const store = {
+    listKeys(prefix){
+      const out = [];
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(k && k.startsWith(STORE_PREFIX+prefix)) out.push(k.slice(STORE_PREFIX.length));
+      }
+      return out;
+    },
+    get(key){ const v = localStorage.getItem(STORE_PREFIX+key); return v; },
+    set(key, value){ localStorage.setItem(STORE_PREFIX+key, value); },
+    remove(key){ localStorage.removeItem(STORE_PREFIX+key); }
+  };
+
+  async function loadAll(){
+    try{
+      const parties = store.listKeys('party:').map(k=>JSON.parse(store.get(k))).filter(Boolean);
+      const bills = store.listKeys('bill:').map(k=>JSON.parse(store.get(k))).filter(Boolean);
+      const payments = store.listKeys('payment:').map(k=>JSON.parse(store.get(k))).filter(Boolean);
+      state.parties = parties; state.bills = bills; state.payments = payments;
+    }catch(e){
+      console.error('load error', e);
+      state.loadError = (e && e.message) ? e.message : String(e);
+    }
+    state.loaded = true;
+    render();
+  }
+
+  function partyBalance(partyId){
+    const p = state.parties.find(x=>x.id===partyId);
+    let bal = p ? (Number(p.openingBalance)||0) : 0;
+    state.bills.filter(b=>b.partyId===partyId).forEach(b=> bal += Number(b.amount)||0);
+    state.payments.filter(pm=>pm.partyId===partyId).forEach(pm=> bal -= Number(pm.amount)||0);
+    return bal;
+  }
+  function totalReceivables(){
+    return state.parties.reduce((sum,p)=> sum + Math.max(0, partyBalance(p.id)), 0);
+  }
+  function overdueInfo(){
+    const today = new Date().toISOString().slice(0,10);
+    const overdueBills = state.bills.filter(b=> b.dueDate && b.dueDate < today);
+    const partyIds = new Set();
+    let amt = 0;
+    overdueBills.forEach(b=>{ if(partyBalance(b.partyId) > 0){ amt += Number(b.amount)||0; partyIds.add(b.partyId);} });
+    return { count: partyIds.size, amt };
+  }
+
+  async function saveParty(data){
+    store.set('party:'+data.id, JSON.stringify(data));
+    state.parties.push(data);
+  }
+  async function saveBill(data){
+    store.set('bill:'+data.id, JSON.stringify(data));
+    state.bills.push(data);
+  }
+  async function savePayment(data){
+    store.set('payment:'+data.id, JSON.stringify(data));
+    state.payments.push(data);
+  }
+
+  function exportBackup(){
+    const payload = { exportedAt: new Date().toISOString(), parties: state.parties, bills: state.bills, payments: state.payments };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'namo-ledger-backup-'+today()+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importBackup(file){
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      try{
+        const payload = JSON.parse(e.target.result);
+        (payload.parties||[]).forEach(p=> store.set('party:'+p.id, JSON.stringify(p)));
+        (payload.bills||[]).forEach(b=> store.set('bill:'+b.id, JSON.stringify(b)));
+        (payload.payments||[]).forEach(pm=> store.set('payment:'+pm.id, JSON.stringify(pm)));
+        loadAll();
+      }catch(err){ alert('Could not read that backup file.'); }
+    };
+    reader.readAsText(file);
+  }
+
+  function resizeImage(file, cb){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        const maxW = 900;
+        const scale = Math.min(1, maxW/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width*scale; canvas.height = img.height*scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        cb(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function setTab(t){ state.tab = t; state.openParty = null; render(); }
+
+  function render(){
+    if(!state.loaded){ app.innerHTML = '<div class="loading">Loading ledger…</div>'; return; }
+    const parts = [];
+    parts.push('<header class="top"><h1>Namo Steels — Sales Ledger</h1><p>Party balances, bills &amp; receivables</p></header>');
+    if(state.loadError){
+      parts.push('<div style="background:#3a2422;border:1px solid var(--red);color:#e8b4a8;padding:10px 12px;font-size:12.5px;margin-bottom:16px;">Could not read saved data: '+escapeHtml(state.loadError)+'.</div>');
+    }
+    parts.push('<div style="display:flex;gap:8px;margin-bottom:16px;"><button class="ghost" id="export-btn">Download backup</button><label class="ghost" style="cursor:pointer;">Restore backup<input type="file" id="import-input" accept="application/json" style="display:none;"></label></div>');
+    parts.push('<nav class="tabs">');
+    [['dashboard','Dashboard'],['parties','Parties'],['bills','Bills'],['payments','Payments']].forEach(([k,label])=>{
+      parts.push(`<button data-tab="${k}" class="${state.tab===k?'active':''}">${label}</button>`);
+    });
+    parts.push('</nav>');
+
+    if(state.tab==='dashboard') parts.push(renderDashboard());
+    if(state.tab==='parties') parts.push(renderParties());
+    if(state.tab==='bills') parts.push(renderBills());
+    if(state.tab==='payments') parts.push(renderPayments());
+
+    app.innerHTML = parts.join('');
+    bindEvents();
+  }
+
+  function renderDashboard(){
+    const total = totalReceivables();
+    const od = overdueInfo();
+    let html = '<div class="stat-row">';
+    html += `<div class="stat"><div class="label">Total receivables</div><div class="value">${money(total)}</div></div>`;
+    html += `<div class="stat ${od.amt>0?'warn':''}"><div class="label">Overdue (${od.count} ${od.count===1?'party':'parties'})</div><div class="value">${money(od.amt)}</div></div>`;
+    html += '</div>';
+    html += '<div class="section-title">Outstanding by party</div>';
+    const rows = state.parties.map(p=>({p, bal: partyBalance(p.id)})).sort((a,b)=>b.bal-a.bal);
+    if(rows.length===0){
+      html += '<div class="empty">No parties yet. Add one under the Parties tab.</div>';
+    } else {
+      html += '<div class="row-list">';
+      rows.forEach(({p,bal})=>{
+        const cls = bal>0?'pos':(bal<0?'neg':'zero');
+        html += `<div class="row-item" data-open-party="${p.id}" data-goto="parties"><div><div class="name">${escapeHtml(p.name)}</div></div><div class="amt ${cls}">${money(bal)}</div></div>`;
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function renderParties(){
+    let html = '<form class="panel" id="party-form">';
+    html += '<div class="field-row"><div class="field"><label>Party name</label><input name="name" required></div><div class="field"><label>Phone</label><input name="phone"></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Opening balance (₹, they owe you)</label><input name="openingBalance" type="number" step="0.01" value="0"></div><div class="field"><label>Notes</label><input name="notes"></div></div>';
+    html += '<button class="primary" type="submit">Add party</button>';
+    html += '</form>';
+
+    html += '<div class="section-title">Parties</div>';
+    if(state.parties.length===0){
+      html += '<div class="empty">No parties added yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      state.parties.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{
+        const bal = partyBalance(p.id);
+        const cls = bal>0?'pos':(bal<0?'neg':'zero');
+        html += `<div class="row-item" data-open-party="${p.id}"><div><div class="name">${escapeHtml(p.name)}</div>${p.phone?`<div class="sub">${escapeHtml(p.phone)}</div>`:''}</div><div class="amt ${cls}">${money(bal)}</div></div>`;
+        if(state.openParty===p.id){
+          html += renderPartyDetail(p);
+        }
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function renderPartyDetail(p){
+    const bills = state.bills.filter(b=>b.partyId===p.id);
+    const payments = state.payments.filter(pm=>pm.partyId===p.id);
+    let lines = [];
+    lines.push({date: p.createdAt || '0000-00-00', desc:'Opening balance', amt: Number(p.openingBalance)||0, type:'open'});
+    bills.forEach(b=> lines.push({date:b.date, desc:'Bill '+(b.invoiceNo||''), amt:Number(b.amount)||0, type:'bill', image:b.image}));
+    payments.forEach(pm=> lines.push({date:pm.date, desc:'Payment received'+(pm.mode?' ('+pm.mode+')':''), amt:-(Number(pm.amount)||0), type:'payment'}));
+    lines.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+    let running = 0;
+    let html = '<div class="detail">';
+    html += `<div class="detail-head"><h3>${escapeHtml(p.name)}</h3><div class="bal">${money(partyBalance(p.id))}</div></div>`;
+    if(lines.length===0 || (lines.length===1 && lines[0].amt===0)){
+      html += '<div class="empty">No bills or payments yet.</div>';
+    } else {
+      lines.forEach(l=>{
+        running += l.amt;
+        if(l.type==='open' && l.amt===0) return;
+        html += `<div class="ledger-line"><div class="l-date">${fmtDate(l.date)}</div><div class="l-desc">${escapeHtml(l.desc)}</div><div class="l-amt">${l.amt>=0?'+':''}${money(l.amt)}</div><div class="l-run">${money(running)}</div></div>`;
+      });
+    }
+    html += `<div class="quick-actions"><button class="ghost" data-goto-tab="bills" data-preset-party="${p.id}">+ Bill</button><button class="ghost" data-goto-tab="payments" data-preset-party="${p.id}">+ Payment</button></div>`;
+    html += '</div>';
+    return html;
+  }
+
+  function partyOptions(selectedId){
+    return state.parties.slice().sort((a,b)=>a.name.localeCompare(b.name))
+      .map(p=>`<option value="${p.id}" ${p.id===selectedId?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+  }
+
+  let presetParty = null;
+
+  function renderBills(){
+    let html = '<form class="panel" id="bill-form">';
+    html += '<div class="field"><label>Party</label><select name="partyId" required>' + (state.parties.length? partyOptions(presetParty) : '<option value="">Add a party first</option>') + '</select></div>';
+    html += '<div class="field-row"><div class="field"><label>Invoice no.</label><input name="invoiceNo"></div><div class="field"><label>Basic amount (₹)</label><input name="basicAmount" id="basic-amount" type="number" step="0.01" required></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Bill date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Due date</label><input name="dueDate" type="date"></div></div>';
+    html += '<div class="field"><label>Bill photo (optional)</label><input name="image" type="file" accept="image/*"></div>';
+
+    html += '<div class="calc-block">';
+    html += '<div class="calc-line"><span>Basic amount</span><span id="calc-basic">₹0</span></div>';
+    html += '<div class="calc-line"><span>GST (18%, auto)</span><span id="calc-gst">₹0</span></div>';
+
+    html += '<div class="tick-row"><label class="tick-label"><input type="checkbox" name="tcsEnabled" id="tcs-enabled"> TCS %</label><input name="tcsPercent" id="tcs-percent" type="number" step="0.01" placeholder="e.g. 0.1" disabled></div>';
+    html += '<div class="calc-line sub"><span>TCS amount (added)</span><span id="calc-tcs">₹0</span></div>';
+
+    html += '<div class="tick-row"><label class="tick-label"><input type="checkbox" name="tds1Enabled" id="tds1-enabled"> TDS %</label><input name="tds1Percent" id="tds1-percent" type="number" step="0.01" placeholder="e.g. 2" disabled></div>';
+    html += '<div class="calc-line sub"><span>TDS amount (subtracted)</span><span id="calc-tds1">₹0</span></div>';
+
+    html += '<div class="tick-row"><label class="tick-label"><input type="checkbox" name="tds2Enabled" id="tds2-enabled"> TDS %</label><input name="tds2Percent" id="tds2-percent" type="number" step="0.01" placeholder="e.g. 0.1" disabled></div>';
+    html += '<div class="calc-line sub"><span>TDS amount (subtracted)</span><span id="calc-tds2">₹0</span></div>';
+
+    html += '<div class="calc-line net"><span>Net amount</span><span id="calc-net">₹0</span></div>';
+    html += '</div>';
+
+    html += '<button class="primary" type="submit" '+(state.parties.length?'':'disabled')+'>Save bill</button>';
+    html += '</form>';
+    presetParty = null;
+
+    html += '<div class="section-title">Recent bills</div>';
+    const bills = state.bills.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(bills.length===0){
+      html += '<div class="empty">No bills recorded yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      bills.forEach(b=>{
+        const p = state.parties.find(x=>x.id===b.partyId);
+        const parts = ['Basic '+money(b.basicAmount!=null?b.basicAmount:b.amount)];
+        if(b.gstAmount) parts.push('GST '+money(b.gstAmount));
+        if(b.tcsAmount) parts.push('TCS '+money(b.tcsAmount));
+        if(b.tds1Amount) parts.push('TDS '+money(b.tds1Amount));
+        if(b.tds2Amount) parts.push('TDS '+money(b.tds2Amount));
+        const breakdown = b.basicAmount!=null ? parts.join(' · ') : '';
+        html += `<div class="row-item"><div style="display:flex;align-items:center;">${b.image?`<img class="thumb" src="${b.image}">`:''}<div><div class="name">${p?escapeHtml(p.name):'Unknown party'}</div><div class="sub">${b.invoiceNo?('Inv '+escapeHtml(b.invoiceNo)+' · '):''}${fmtDate(b.date)}${b.dueDate?(' · due '+fmtDate(b.dueDate)):''}</div>${breakdown?`<div class="sub">${escapeHtml(breakdown)}</div>`:''}</div></div><div class="amt pos">${money(b.amount)}</div></div>`;
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function renderPayments(){
+    let html = '<form class="panel" id="payment-form">';
+    html += '<div class="field"><label>Party</label><select name="partyId" required>' + (state.parties.length? partyOptions(presetParty) : '<option value="">Add a party first</option>') + '</select></div>';
+    html += '<div class="field-row"><div class="field"><label>Amount received (₹)</label><input name="amount" type="number" step="0.01" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Mode</label><select name="mode"><option>Bank transfer</option><option>UPI</option><option>Cash</option><option>Cheque</option><option>Other</option></select></div><div class="field"><label>Note</label><input name="note"></div></div>';
+    html += '<button class="primary" type="submit" '+(state.parties.length?'':'disabled')+'>Save payment</button>';
+    html += '</form>';
+    presetParty = null;
+
+    html += '<div class="section-title">Recent payments</div>';
+    const payments = state.payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(payments.length===0){
+      html += '<div class="empty">No payments recorded yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      payments.forEach(pm=>{
+        const p = state.parties.find(x=>x.id===pm.partyId);
+        html += `<div class="row-item"><div><div class="name">${p?escapeHtml(p.name):'Unknown party'}</div><div class="sub">${escapeHtml(pm.mode||'')}${pm.note?(' · '+escapeHtml(pm.note)):''} · ${fmtDate(pm.date)}</div></div><div class="amt neg">-${money(pm.amount)}</div></div>`;
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  function computeBillTotals(fd){
+    const basic = Number(fd.get('basicAmount'))||0;
+    const gst = basic * 0.18;
+    const tcsOn = fd.get('tcsEnabled')==='on';
+    const tds1On = fd.get('tds1Enabled')==='on';
+    const tds2On = fd.get('tds2Enabled')==='on';
+    const tcsPct = Number(fd.get('tcsPercent'))||0;
+    const tds1Pct = Number(fd.get('tds1Percent'))||0;
+    const tds2Pct = Number(fd.get('tds2Percent'))||0;
+    const tcsAmt = tcsOn ? (basic+gst) * (tcsPct/100) : 0;
+    const tds1Amt = tds1On ? basic * (tds1Pct/100) : 0;
+    const tds2Amt = tds2On ? basic * (tds2Pct/100) : 0;
+    const net = basic + gst + tcsAmt - tds1Amt - tds2Amt;
+    return { basic, gst, tcsOn, tcsPct, tcsAmt, tds1On, tds1Pct, tds1Amt, tds2On, tds2Pct, tds2Amt, net };
+  }
+
+  function wireBillCalc(bf){
+    const refresh = ()=>{
+      document.getElementById('tcs-percent').disabled = !document.getElementById('tcs-enabled').checked;
+      document.getElementById('tds1-percent').disabled = !document.getElementById('tds1-enabled').checked;
+      document.getElementById('tds2-percent').disabled = !document.getElementById('tds2-enabled').checked;
+      const fd = new FormData(bf);
+      const t = computeBillTotals(fd);
+      document.getElementById('calc-basic').textContent = money(t.basic);
+      document.getElementById('calc-gst').textContent = money(t.gst);
+      document.getElementById('calc-tcs').textContent = (t.tcsOn?'+':'') + money(t.tcsAmt);
+      document.getElementById('calc-tds1').textContent = (t.tds1On?'-':'') + money(t.tds1Amt);
+      document.getElementById('calc-tds2').textContent = (t.tds2On?'-':'') + money(t.tds2Amt);
+      document.getElementById('calc-net').textContent = money(t.net);
+    };
+    bf.addEventListener('input', refresh);
+    bf.addEventListener('change', refresh);
+    refresh();
+  }
+
+  function bindEvents(){
+    const exportBtn = document.getElementById('export-btn');
+    if(exportBtn) exportBtn.addEventListener('click', exportBackup);
+    const importInput = document.getElementById('import-input');
+    if(importInput) importInput.addEventListener('change', (e)=>{ if(e.target.files[0]) importBackup(e.target.files[0]); });
+    app.querySelectorAll('[data-tab]').forEach(b=> b.addEventListener('click', ()=> setTab(b.dataset.tab)));
+    app.querySelectorAll('[data-open-party]').forEach(el=> el.addEventListener('click', (e)=>{
+      const id = el.dataset.openParty;
+      if(el.dataset.goto==='parties') { state.tab='parties'; }
+      state.openParty = state.openParty===id ? null : id;
+      render();
+    }));
+    app.querySelectorAll('[data-goto-tab]').forEach(el=> el.addEventListener('click', ()=>{
+      presetParty = el.dataset.presetParty;
+      state.tab = el.dataset.gotoTab;
+      state.openParty = null;
+      render();
+    }));
+
+    const pf = document.getElementById('party-form');
+    if(pf) pf.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(pf);
+      const data = { id: uid(), name: fd.get('name').trim(), phone: fd.get('phone').trim(), openingBalance: Number(fd.get('openingBalance'))||0, notes: fd.get('notes').trim(), createdAt: today() };
+      if(!data.name) return;
+      const btn = pf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+      try{ await saveParty(data); render(); }
+      catch(err){ console.error(err); btn.disabled=false; btn.textContent='Add party'; alert('Could not save party — try again.'); }
+    });
+
+    const bf = document.getElementById('bill-form');
+    if(bf){
+      wireBillCalc(bf);
+      bf.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(bf);
+        const file = fd.get('image');
+        const t = computeBillTotals(fd);
+        const build = (imageData)=> ({
+          id: uid(), partyId: fd.get('partyId'), invoiceNo: (fd.get('invoiceNo')||'').trim(),
+          basicAmount: t.basic, gstAmount: t.gst,
+          tcsPercent: t.tcsOn ? t.tcsPct : null, tcsAmount: t.tcsAmt,
+          tds1Percent: t.tds1On ? t.tds1Pct : null, tds1Amount: t.tds1Amt,
+          tds2Percent: t.tds2On ? t.tds2Pct : null, tds2Amount: t.tds2Amt,
+          amount: t.net,
+          date: fd.get('date')||today(), dueDate: fd.get('dueDate')||'', image: imageData||null
+        });
+        const btn = bf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+        const finish = async (data)=>{
+          try{ await saveBill(data); render(); }
+          catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save bill'; alert('Could not save bill — try again.'); }
+        };
+        if(file && file.size>0){
+          resizeImage(file, (dataUrl)=> finish(build(dataUrl)));
+        } else {
+          finish(build(null));
+        }
+      });
+    }
+
+    const pmf = document.getElementById('payment-form');
+    if(pmf) pmf.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(pmf);
+      const data = { id: uid(), partyId: fd.get('partyId'), amount: Number(fd.get('amount'))||0, date: fd.get('date')||today(), mode: fd.get('mode'), note: (fd.get('note')||'').trim() };
+      const btn = pmf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+      try{ await savePayment(data); render(); }
+      catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save payment'; alert('Could not save payment — try again.'); }
+    });
+  }
+
+  // Safety net: never leave the user stuck on the loading screen.
+  setTimeout(()=>{ if(!state.loaded){ state.loaded = true; state.loadError = 'Timed out reading local data.'; render(); } }, 2500);
+
+  loadAll();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
