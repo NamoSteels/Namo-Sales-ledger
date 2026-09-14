@@ -119,40 +119,77 @@
 <script>
 (function(){
   const app = document.getElementById('app');
-  let state = { parties: [], bills: [], payments: [], tab: 'dashboard', openParty: null, loaded:false, loadError:null };
+  let state = { parties: [], bills: [], payments: [], tab: 'dashboard', openParty: null, loaded:false, loadError:null, needsAuth:false, authError:null };
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   function money(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
   function fmtDate(d){ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}); }
 
-  // --- Storage: browser localStorage, namespaced under NAMO_LEDGER_ ---
-  const STORE_PREFIX = 'NAMO_LEDGER_';
-  const store = {
-    listKeys(prefix){
-      const out = [];
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        if(k && k.startsWith(STORE_PREFIX+prefix)) out.push(k.slice(STORE_PREFIX.length));
-      }
-      return out;
-    },
-    get(key){ const v = localStorage.getItem(STORE_PREFIX+key); return v; },
-    set(key, value){ localStorage.setItem(STORE_PREFIX+key, value); },
-    remove(key){ localStorage.removeItem(STORE_PREFIX+key); }
-  };
+  // --- Storage: shared Google Sheet via Apps Script Web App ---
+  // Paste your deployed Apps Script Web App URL between the quotes below.
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzmE1K9fLiZm4yKCXL6FxTdhOssyvqbYUk9f64WxOHoRsAfq2nNdZkOC6vkeCtVxnxw/exec';
+  const PW_KEY = 'NAMO_LEDGER_PW';
+  let currentPw = localStorage.getItem(PW_KEY) || '';
+
+  async function apiGetAll(prefix){
+    const res = await fetch(API_URL + '?action=getAll&prefix=' + encodeURIComponent(prefix) + '&pw=' + encodeURIComponent(currentPw));
+    const data = await res.json();
+    if(data && data.error === 'unauthorized'){ const err = new Error('unauthorized'); err.code='unauthorized'; throw err; }
+    if(data && data.error) throw new Error(data.error);
+    return data;
+  }
+  async function apiSet(key, value){
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'set', key, value, pw: currentPw })
+    });
+    const data = await res.json();
+    if(data && data.error === 'unauthorized'){ const err = new Error('unauthorized'); err.code='unauthorized'; throw err; }
+    if(data && data.error) throw new Error(data.error);
+    return data;
+  }
 
   async function loadAll(){
+    if(!API_URL || API_URL.indexOf('PASTE_YOUR') === 0){
+      state.loadError = 'This app isn\'t connected to shared storage yet. Deploy the Apps Script backend and paste its URL into API_URL near the top of the file.';
+      state.loaded = true; render(); return;
+    }
+    if(!currentPw){
+      state.needsAuth = true; state.loaded = true; render(); return;
+    }
     try{
-      const parties = store.listKeys('party:').map(k=>JSON.parse(store.get(k))).filter(Boolean);
-      const bills = store.listKeys('bill:').map(k=>JSON.parse(store.get(k))).filter(Boolean);
-      const payments = store.listKeys('payment:').map(k=>JSON.parse(store.get(k))).filter(Boolean);
-      state.parties = parties; state.bills = bills; state.payments = payments;
+      const [partyMap, billMap, paymentMap] = await Promise.all([
+        apiGetAll('party:'), apiGetAll('bill:'), apiGetAll('payment:')
+      ]);
+      state.parties = Object.values(partyMap).map(v=>JSON.parse(v));
+      state.bills = Object.values(billMap).map(v=>JSON.parse(v));
+      state.payments = Object.values(paymentMap).map(v=>JSON.parse(v));
+      state.loadError = null;
+      state.needsAuth = false;
+      state.authError = null;
     }catch(e){
       console.error('load error', e);
-      state.loadError = (e && e.message) ? e.message : String(e);
+      if(e.code==='unauthorized'){
+        localStorage.removeItem(PW_KEY);
+        currentPw = '';
+        state.needsAuth = true;
+        state.authError = 'Incorrect password.';
+      } else {
+        state.loadError = (e && e.message) ? e.message : String(e);
+      }
     }
     state.loaded = true;
     render();
+  }
+
+  async function tryPassword(pw){
+    currentPw = pw;
+    state.authError = null;
+    await loadAll();
+    if(!state.needsAuth){
+      localStorage.setItem(PW_KEY, pw);
+    }
   }
 
   function partyBalance(partyId){
@@ -175,15 +212,15 @@
   }
 
   async function saveParty(data){
-    store.set('party:'+data.id, JSON.stringify(data));
+    await apiSet('party:'+data.id, JSON.stringify(data));
     state.parties.push(data);
   }
   async function saveBill(data){
-    store.set('bill:'+data.id, JSON.stringify(data));
+    await apiSet('bill:'+data.id, JSON.stringify(data));
     state.bills.push(data);
   }
   async function savePayment(data){
-    store.set('payment:'+data.id, JSON.stringify(data));
+    await apiSet('payment:'+data.id, JSON.stringify(data));
     state.payments.push(data);
   }
 
@@ -197,14 +234,16 @@
     URL.revokeObjectURL(url);
   }
 
-  function importBackup(file){
+  async function importBackup(file){
     const reader = new FileReader();
-    reader.onload = (e)=>{
+    reader.onload = async (e)=>{
       try{
         const payload = JSON.parse(e.target.result);
-        (payload.parties||[]).forEach(p=> store.set('party:'+p.id, JSON.stringify(p)));
-        (payload.bills||[]).forEach(b=> store.set('bill:'+b.id, JSON.stringify(b)));
-        (payload.payments||[]).forEach(pm=> store.set('payment:'+pm.id, JSON.stringify(pm)));
+        const jobs = [];
+        (payload.parties||[]).forEach(p=> jobs.push(apiSet('party:'+p.id, JSON.stringify(p))));
+        (payload.bills||[]).forEach(b=> jobs.push(apiSet('bill:'+b.id, JSON.stringify(b))));
+        (payload.payments||[]).forEach(pm=> jobs.push(apiSet('payment:'+pm.id, JSON.stringify(pm))));
+        await Promise.all(jobs);
         loadAll();
       }catch(err){ alert('Could not read that backup file.'); }
     };
@@ -231,14 +270,37 @@
 
   function setTab(t){ state.tab = t; state.openParty = null; render(); }
 
+  function renderLockScreen(){
+    let html = '<div style="max-width:320px;margin:60px auto 0;text-align:center;">';
+    html += '<h1 style="font-family:var(--font-head);font-size:20px;margin-bottom:6px;">Namo Steels — Sales Ledger</h1>';
+    html += '<p style="color:var(--muted);font-size:12.5px;margin-bottom:24px;">Enter the shared password to continue</p>';
+    html += '<form class="panel" id="lock-form" style="text-align:left;">';
+    if(state.authError) html += '<div style="color:var(--red);font-size:12.5px;margin-bottom:10px;">'+escapeHtml(state.authError)+'</div>';
+    html += '<div class="field"><label>Password</label><input name="pw" type="password" autofocus required></div>';
+    html += '<button class="primary" type="submit" style="width:100%;">Unlock</button>';
+    html += '</form></div>';
+    return html;
+  }
+
   function render(){
     if(!state.loaded){ app.innerHTML = '<div class="loading">Loading ledger…</div>'; return; }
+    if(state.needsAuth){
+      app.innerHTML = renderLockScreen();
+      const lf = document.getElementById('lock-form');
+      if(lf) lf.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const pw = new FormData(lf).get('pw');
+        const btn = lf.querySelector('button'); btn.disabled = true; btn.textContent = 'Checking…';
+        await tryPassword(pw);
+      });
+      return;
+    }
     const parts = [];
     parts.push('<header class="top"><h1>Namo Steels — Sales Ledger</h1><p>Party balances, bills &amp; receivables</p></header>');
     if(state.loadError){
       parts.push('<div style="background:#3a2422;border:1px solid var(--red);color:#e8b4a8;padding:10px 12px;font-size:12.5px;margin-bottom:16px;">Could not read saved data: '+escapeHtml(state.loadError)+'.</div>');
     }
-    parts.push('<div style="display:flex;gap:8px;margin-bottom:16px;"><button class="ghost" id="export-btn">Download backup</button><label class="ghost" style="cursor:pointer;">Restore backup<input type="file" id="import-input" accept="application/json" style="display:none;"></label></div>');
+    parts.push('<div style="display:flex;gap:8px;margin-bottom:16px;"><button class="ghost" id="refresh-btn">Refresh</button><button class="ghost" id="export-btn">Download backup</button><label class="ghost" style="cursor:pointer;">Restore backup<input type="file" id="import-input" accept="application/json" style="display:none;"></label></div>');
     parts.push('<nav class="tabs">');
     [['dashboard','Dashboard'],['parties','Parties'],['bills','Bills'],['payments','Payments']].forEach(([k,label])=>{
       parts.push(`<button data-tab="${k}" class="${state.tab===k?'active':''}">${label}</button>`);
@@ -446,6 +508,8 @@
   }
 
   function bindEvents(){
+    const refreshBtn = document.getElementById('refresh-btn');
+    if(refreshBtn) refreshBtn.addEventListener('click', ()=>{ refreshBtn.textContent='Refreshing…'; loadAll(); });
     const exportBtn = document.getElementById('export-btn');
     if(exportBtn) exportBtn.addEventListener('click', exportBackup);
     const importInput = document.getElementById('import-input');
@@ -517,7 +581,7 @@
   }
 
   // Safety net: never leave the user stuck on the loading screen.
-  setTimeout(()=>{ if(!state.loaded){ state.loaded = true; state.loadError = 'Timed out reading local data.'; render(); } }, 2500);
+  setTimeout(()=>{ if(!state.loaded){ state.loaded = true; state.loadError = 'Timed out reaching shared storage — check your internet connection and try Refresh.'; render(); } }, 8000);
 
   loadAll();
 })();
