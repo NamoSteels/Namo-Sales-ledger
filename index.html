@@ -104,12 +104,15 @@
   .detail-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;}
   .detail-head h3{font-family:var(--font-head); font-size:16px;}
   .detail-head .bal{font-variant-numeric:tabular-nums; font-weight:600;}
-  .ledger-line{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;}
-  .ledger-line .l-date{color:var(--muted); width:66px; flex-shrink:0;}
+  .ledger-line{display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .ledger-line .l-date{color:var(--muted); width:60px; flex-shrink:0;}
   .ledger-line .l-desc{flex:1;}
-  .ledger-line .l-amt{font-variant-numeric:tabular-nums; text-align:right; width:80px;}
-  .ledger-line .l-run{font-variant-numeric:tabular-nums; text-align:right; width:80px; color:var(--muted);}
-  .quick-actions{display:flex; gap:8px; margin-top:10px;}
+  .ledger-line .l-amt{font-variant-numeric:tabular-nums; text-align:right; width:76px;}
+  .ledger-line .l-run{font-variant-numeric:tabular-nums; text-align:right; width:76px; color:var(--muted);}
+  .line-del{background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; padding:2px 0 2px 10px; flex-shrink:0; width:26px; text-align:right;}
+  .line-del:hover{color:var(--red);}
+  .line-del-spacer{display:inline-block; width:26px; flex-shrink:0;}
+  .quick-actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
   .thumb{width:34px; height:34px; object-fit:cover; border:1px solid var(--line); margin-right:8px; flex-shrink:0;}
   .loading{color:var(--muted); padding:20px 2px; font-size:13px;}
 </style>
@@ -119,7 +122,7 @@
 <script>
 (function(){
   const app = document.getElementById('app');
-  let state = { parties: [], bills: [], payments: [], tab: 'dashboard', openParty: null, loaded:false, loadError:null, needsAuth:false, authError:null };
+  let state = { parties: [], bills: [], payments: [], adjustments: [], tab: 'dashboard', openParty: null, loaded:false, loadError:null, needsAuth:false, authError:null };
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   function money(n){ return '₹' + Math.round(n).toLocaleString('en-IN'); }
@@ -149,6 +152,17 @@
     if(data && data.error) throw new Error(data.error);
     return data;
   }
+  async function apiDelete(key){
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'delete', key, pw: currentPw })
+    });
+    const data = await res.json();
+    if(data && data.error === 'unauthorized'){ const err = new Error('unauthorized'); err.code='unauthorized'; throw err; }
+    if(data && data.error) throw new Error(data.error);
+    return data;
+  }
 
   async function loadAll(){
     if(!API_URL || API_URL.indexOf('PASTE_YOUR') === 0){
@@ -159,12 +173,13 @@
       state.needsAuth = true; state.loaded = true; render(); return;
     }
     try{
-      const [partyMap, billMap, paymentMap] = await Promise.all([
-        apiGetAll('party:'), apiGetAll('bill:'), apiGetAll('payment:')
+      const [partyMap, billMap, paymentMap, adjMap] = await Promise.all([
+        apiGetAll('party:'), apiGetAll('bill:'), apiGetAll('payment:'), apiGetAll('adjustment:')
       ]);
       state.parties = Object.values(partyMap).map(v=>JSON.parse(v));
       state.bills = Object.values(billMap).map(v=>JSON.parse(v));
       state.payments = Object.values(paymentMap).map(v=>JSON.parse(v));
+      state.adjustments = Object.values(adjMap).map(v=>JSON.parse(v));
       state.loadError = null;
       state.needsAuth = false;
       state.authError = null;
@@ -197,6 +212,7 @@
     let bal = p ? (Number(p.openingBalance)||0) : 0;
     state.bills.filter(b=>b.partyId===partyId).forEach(b=> bal += Number(b.amount)||0);
     state.payments.filter(pm=>pm.partyId===partyId).forEach(pm=> bal -= Number(pm.amount)||0);
+    state.adjustments.filter(a=>a.partyId===partyId).forEach(a=> bal += Number(a.amount)||0);
     return bal;
   }
   function totalReceivables(){
@@ -223,9 +239,28 @@
     await apiSet('payment:'+data.id, JSON.stringify(data));
     state.payments.push(data);
   }
+  async function deleteBill(id){
+    await apiDelete('bill:'+id);
+    state.bills = state.bills.filter(b=>b.id!==id);
+  }
+  async function deletePayment(id){
+    await apiDelete('payment:'+id);
+    state.payments = state.payments.filter(p=>p.id!==id);
+  }
+  async function deleteAdjustment(id){
+    await apiDelete('adjustment:'+id);
+    state.adjustments = state.adjustments.filter(a=>a.id!==id);
+  }
+  async function settleParty(partyId){
+    const bal = partyBalance(partyId);
+    if(Math.round(bal)===0) return;
+    const data = { id: uid(), partyId, date: today(), amount: -bal, note: 'Balance settled to zero' };
+    await apiSet('adjustment:'+data.id, JSON.stringify(data));
+    state.adjustments.push(data);
+  }
 
   function exportBackup(){
-    const payload = { exportedAt: new Date().toISOString(), parties: state.parties, bills: state.bills, payments: state.payments };
+    const payload = { exportedAt: new Date().toISOString(), parties: state.parties, bills: state.bills, payments: state.payments, adjustments: state.adjustments };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -243,6 +278,7 @@
         (payload.parties||[]).forEach(p=> jobs.push(apiSet('party:'+p.id, JSON.stringify(p))));
         (payload.bills||[]).forEach(b=> jobs.push(apiSet('bill:'+b.id, JSON.stringify(b))));
         (payload.payments||[]).forEach(pm=> jobs.push(apiSet('payment:'+pm.id, JSON.stringify(pm))));
+        (payload.adjustments||[]).forEach(a=> jobs.push(apiSet('adjustment:'+a.id, JSON.stringify(a))));
         await Promise.all(jobs);
         loadAll();
       }catch(err){ alert('Could not read that backup file.'); }
@@ -366,24 +402,34 @@
   function renderPartyDetail(p){
     const bills = state.bills.filter(b=>b.partyId===p.id);
     const payments = state.payments.filter(pm=>pm.partyId===p.id);
+    const adjustments = state.adjustments.filter(a=>a.partyId===p.id);
     let lines = [];
     lines.push({date: p.createdAt || '0000-00-00', desc:'Opening balance', amt: Number(p.openingBalance)||0, type:'open'});
-    bills.forEach(b=> lines.push({date:b.date, desc:'Bill '+(b.invoiceNo||''), amt:Number(b.amount)||0, type:'bill', image:b.image}));
-    payments.forEach(pm=> lines.push({date:pm.date, desc:'Payment received'+(pm.mode?' ('+pm.mode+')':''), amt:-(Number(pm.amount)||0), type:'payment'}));
+    bills.forEach(b=> lines.push({date:b.date, desc:'Bill '+(b.invoiceNo||''), amt:Number(b.amount)||0, type:'bill', id:b.id}));
+    payments.forEach(pm=> lines.push({date:pm.date, desc:'Payment received'+(pm.mode?' ('+pm.mode+')':''), amt:-(Number(pm.amount)||0), type:'payment', id:pm.id}));
+    adjustments.forEach(a=> lines.push({date:a.date, desc:a.note||'Balance adjustment', amt:Number(a.amount)||0, type:'adjustment', id:a.id}));
     lines.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
     let running = 0;
+    const bal = partyBalance(p.id);
     let html = '<div class="detail">';
-    html += `<div class="detail-head"><h3>${escapeHtml(p.name)}</h3><div class="bal">${money(partyBalance(p.id))}</div></div>`;
+    html += `<div class="detail-head"><h3>${escapeHtml(p.name)}</h3><div class="bal">${money(bal)}</div></div>`;
     if(lines.length===0 || (lines.length===1 && lines[0].amt===0)){
       html += '<div class="empty">No bills or payments yet.</div>';
     } else {
       lines.forEach(l=>{
         running += l.amt;
         if(l.type==='open' && l.amt===0) return;
-        html += `<div class="ledger-line"><div class="l-date">${fmtDate(l.date)}</div><div class="l-desc">${escapeHtml(l.desc)}</div><div class="l-amt">${l.amt>=0?'+':''}${money(l.amt)}</div><div class="l-run">${money(running)}</div></div>`;
+        const delBtn = l.type!=='open' ? `<button class="line-del" data-delete-${l.type}="${l.id}" data-party="${p.id}" title="Delete">✕</button>` : '<span class="line-del-spacer"></span>';
+        html += `<div class="ledger-line"><div class="l-date">${fmtDate(l.date)}</div><div class="l-desc">${escapeHtml(l.desc)}</div><div class="l-amt">${l.amt>=0?'+':''}${money(l.amt)}</div><div class="l-run">${money(running)}</div>${delBtn}</div>`;
       });
     }
-    html += `<div class="quick-actions"><button class="ghost" data-goto-tab="bills" data-preset-party="${p.id}">+ Bill</button><button class="ghost" data-goto-tab="payments" data-preset-party="${p.id}">+ Payment</button></div>`;
+    html += '<div class="quick-actions">';
+    html += `<button class="ghost" data-goto-tab="bills" data-preset-party="${p.id}">+ Bill</button>`;
+    html += `<button class="ghost" data-goto-tab="payments" data-preset-party="${p.id}">+ Payment</button>`;
+    if(Math.round(bal)!==0){
+      html += `<button class="ghost" data-settle-party="${p.id}">Settle to zero</button>`;
+    }
+    html += '</div>';
     html += '</div>';
     return html;
   }
@@ -437,7 +483,7 @@
         if(b.tds1Amount) parts.push('TDS '+money(b.tds1Amount));
         if(b.tds2Amount) parts.push('TDS '+money(b.tds2Amount));
         const breakdown = b.basicAmount!=null ? parts.join(' · ') : '';
-        html += `<div class="row-item"><div style="display:flex;align-items:center;">${b.image?`<img class="thumb" src="${b.image}">`:''}<div><div class="name">${p?escapeHtml(p.name):'Unknown party'}</div><div class="sub">${b.invoiceNo?('Inv '+escapeHtml(b.invoiceNo)+' · '):''}${fmtDate(b.date)}${b.dueDate?(' · due '+fmtDate(b.dueDate)):''}</div>${breakdown?`<div class="sub">${escapeHtml(breakdown)}</div>`:''}</div></div><div class="amt pos">${money(b.amount)}</div></div>`;
+        html += `<div class="row-item" style="cursor:default;"><div style="display:flex;align-items:center;">${b.image?`<img class="thumb" src="${b.image}">`:''}<div><div class="name">${p?escapeHtml(p.name):'Unknown party'}</div><div class="sub">${b.invoiceNo?('Inv '+escapeHtml(b.invoiceNo)+' · '):''}${fmtDate(b.date)}${b.dueDate?(' · due '+fmtDate(b.dueDate)):''}</div>${breakdown?`<div class="sub">${escapeHtml(breakdown)}</div>`:''}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt pos">${money(b.amount)}</div><button class="line-del" data-delete-bill="${b.id}" title="Delete">✕</button></div></div>`;
       });
       html += '</div>';
     }
@@ -461,7 +507,7 @@
       html += '<div class="row-list">';
       payments.forEach(pm=>{
         const p = state.parties.find(x=>x.id===pm.partyId);
-        html += `<div class="row-item"><div><div class="name">${p?escapeHtml(p.name):'Unknown party'}</div><div class="sub">${escapeHtml(pm.mode||'')}${pm.note?(' · '+escapeHtml(pm.note)):''} · ${fmtDate(pm.date)}</div></div><div class="amt neg">-${money(pm.amount)}</div></div>`;
+        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${p?escapeHtml(p.name):'Unknown party'}</div><div class="sub">${escapeHtml(pm.mode||'')}${pm.note?(' · '+escapeHtml(pm.note)):''} · ${fmtDate(pm.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(pm.amount)}</div><button class="line-del" data-delete-payment="${pm.id}" title="Delete">✕</button></div></div>`;
       });
       html += '</div>';
     }
@@ -526,6 +572,37 @@
       state.tab = el.dataset.gotoTab;
       state.openParty = null;
       render();
+    }));
+
+    app.querySelectorAll('[data-delete-bill]').forEach(el=> el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Delete this bill? This cannot be undone.')) return;
+      el.disabled = true;
+      try{ await deleteBill(el.dataset.deleteBill); render(); }
+      catch(err){ console.error(err); el.disabled=false; alert('Could not delete — try again.'); }
+    }));
+    app.querySelectorAll('[data-delete-payment]').forEach(el=> el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Delete this payment? This cannot be undone.')) return;
+      el.disabled = true;
+      try{ await deletePayment(el.dataset.deletePayment); render(); }
+      catch(err){ console.error(err); el.disabled=false; alert('Could not delete — try again.'); }
+    }));
+    app.querySelectorAll('[data-delete-adjustment]').forEach(el=> el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Delete this adjustment? This cannot be undone.')) return;
+      el.disabled = true;
+      try{ await deleteAdjustment(el.dataset.deleteAdjustment); render(); }
+      catch(err){ console.error(err); el.disabled=false; alert('Could not delete — try again.'); }
+    }));
+    app.querySelectorAll('[data-settle-party]').forEach(el=> el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const partyId = el.dataset.settleParty;
+      const bal = partyBalance(partyId);
+      if(!confirm('Settle this party\'s balance to zero? This adds an adjustment entry for ' + money(-bal) + '.')) return;
+      el.disabled = true; el.textContent = 'Settling…';
+      try{ await settleParty(partyId); render(); }
+      catch(err){ console.error(err); el.disabled=false; el.textContent='Settle to zero'; alert('Could not settle — try again.'); }
     }));
 
     const pf = document.getElementById('party-form');
