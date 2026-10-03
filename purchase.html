@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Namo Steels — Purchase Ledger</title>
+<meta name="theme-color" content="#eef0e9">
+<meta name="description" content="Purchase ledger for Namo Steels — containers, hisaab accounts and supplier balances">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Namo Purchase">
+</head>
+<body>
+<style>
+  :root{
+    /* Palette grounded in aged ledger paper and oxidised copper/brass —
+       the two materials this business actually trades in. */
+    --bg:#eef0e9; --surface:#e3e7da; --surface-2:#d7dccb; --line:#c0c8b1;
+    --text:#273530; --muted:#69776a;
+    --accent:#3f6b57; --accent-dim:#5c8470;   /* patina green — primary/interactive */
+    --rust:#a85a2a;                            /* oxidised copper — payable amounts */
+    --red:#9c4330;                             /* brick red — overdue/alerts */
+    --font-head:'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    --font-body:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  #app{max-width:640px; margin:0 auto; padding:20px 16px 60px;}
+  header.top{margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--line);}
+  header.top h1{font-family:var(--font-head); font-weight:600; font-size:23px; letter-spacing:0.1px; color:var(--text);}
+  header.top p{color:var(--muted); font-size:12.5px; margin-top:2px;}
+
+  nav.tabs{display:flex; border-bottom:1px solid var(--line); margin-bottom:20px;}
+  nav.tabs button{ background:none; border:none; color:var(--muted); font-family:var(--font-body); font-size:13.5px; font-weight:500; padding:10px 14px 10px 0; margin-right:14px; cursor:pointer; border-bottom:2px solid transparent; position:relative; top:1px; }
+  nav.tabs button.active{color:var(--text); border-bottom-color:var(--accent);}
+
+  .stat-row{display:flex; gap:10px; margin-bottom:22px; flex-wrap:wrap;}
+  .stat{flex:1; min-width:130px; background:var(--surface); border:1px solid var(--line); padding:12px 13px 11px;}
+  .stat .label{color:var(--muted); font-size:11px;}
+  .stat .value{font-family:var(--font-head); font-size:19px; font-variant-numeric:tabular-nums; margin-top:3px;}
+
+  .section-title{font-family:var(--font-head); font-size:15px; font-weight:600; margin:22px 0 10px; color:var(--text);}
+  .section-title:first-child{margin-top:0;}
+
+  .row-list{border-top:1px solid var(--line);}
+  .row-item{ display:flex; justify-content:space-between; align-items:center; padding:11px 2px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .row-item:hover{background:var(--surface);}
+  .row-item .name{font-weight:500;}
+  .row-item .sub{color:var(--muted); font-size:12px; margin-top:1px;}
+  .row-item .amt{font-variant-numeric:tabular-nums; font-weight:600;}
+  .amt.pos{color:var(--rust);} .amt.zero{color:var(--muted); font-weight:400;} .amt.neg{color:var(--accent);}
+
+  .empty{color:var(--muted); font-size:13px; padding:16px 2px;}
+
+  form.panel{background:var(--surface); border:1px solid var(--line); padding:14px; margin-bottom:20px;}
+  form.panel .field{margin-bottom:10px;}
+  form.panel label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px;}
+  form.panel input, form.panel select, form.panel textarea{ width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text); padding:8px 9px; font-family:var(--font-body); font-size:13.5px; font-variant-numeric:tabular-nums; }
+  form.panel textarea{font-variant-numeric:normal; resize:vertical; min-height:46px;}
+  form.panel input:focus, form.panel select:focus, form.panel textarea:focus{outline:1px solid var(--accent);}
+  .field-row{display:flex; gap:10px;} .field-row .field{flex:1;}
+  .field-row3{display:flex; gap:8px;} .field-row3 .field{flex:1;}
+  button.primary{ background:var(--accent); color:#f4f6ef; border:none; padding:9px 16px; font-family:var(--font-body); font-weight:600; font-size:13.5px; cursor:pointer; margin-top:2px; transition:background 0.15s ease; }
+  button.primary:hover:not(:disabled){background:var(--accent-dim);}
+  button.primary:disabled{opacity:0.5; cursor:default;}
+  button.ghost{ background:none; border:1px solid var(--line); color:var(--muted); padding:8px 14px; font-size:12.5px; cursor:pointer; font-family:var(--font-body); }
+  .form-sub-title{font-family:var(--font-head); font-size:14px; margin-bottom:10px; color:var(--text);}
+
+  .calc-block{background:var(--surface-2); border:1px solid var(--line); padding:10px 12px; margin:10px 0;}
+  .calc-line{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); padding:3px 0; font-variant-numeric:tabular-nums;}
+  .calc-line.sub{padding-bottom:7px; border-bottom:1px solid var(--line); margin-bottom:2px;}
+  .calc-line.net{border-top:1px solid var(--line); margin-top:6px; padding-top:8px; color:var(--text); font-weight:600; font-size:14px;}
+
+  .voucher{background:var(--surface); border:1px solid var(--accent-dim); padding:14px; margin:-1px 0 14px; box-shadow:0 1px 3px rgba(39,53,48,0.06);}
+  .voucher-head{display:flex; justify-content:space-between; font-family:var(--font-head); font-size:15px; margin-bottom:10px;}
+  .voucher-row{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .voucher-row .vr-label{color:var(--muted);}
+  .voucher-row .vr-val{font-variant-numeric:tabular-nums; text-align:right;}
+  .voucher-row.net{font-weight:600; border-top:1px solid var(--line); margin-top:4px; padding-top:9px; border-bottom:none;}
+  .voucher-note{font-size:12px; color:var(--muted); font-style:italic; margin-top:6px;}
+  .seq{color:var(--muted); font-family:var(--font-head); font-size:12px;}
+  .badge{display:inline-block; font-size:11px; padding:2px 7px; border:1px solid var(--line); color:var(--muted);}
+  .badge-loaded, .badge-arrived{border-color:var(--rust); color:var(--rust);}
+  .badge-sold{border-color:var(--accent); color:var(--accent);}
+  .hisaab-tag{font-size:11px; color:var(--rust); margin-left:6px;}
+  .hisaab-tag.none{color:var(--muted);}
+  .line-del{background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; padding:2px 0 2px 10px; flex-shrink:0;}
+  .line-del:hover{color:var(--red);}
+
+  .detail{background:var(--surface); border:1px solid var(--accent-dim); padding:14px; margin:-1px 0 14px; box-shadow:0 1px 3px rgba(39,53,48,0.06);}
+  .detail-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .detail-head h3{font-family:var(--font-head); font-size:16px;}
+  .balance-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0 14px;}
+  .balance-grid .b-item{background:var(--surface-2); border:1px solid var(--line); padding:9px 10px;}
+  .balance-grid .b-item .b-label{font-size:10.5px; color:var(--muted);}
+  .balance-grid .b-item .b-val{font-family:var(--font-head); font-size:16px; font-variant-numeric:tabular-nums; margin-top:2px;}
+  .ledger-line{display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .ledger-line .l-date{color:var(--muted); width:58px; flex-shrink:0;}
+  .ledger-line .l-desc{flex:1;}
+  .ledger-line .l-amt{font-variant-numeric:tabular-nums; text-align:right; width:80px;}
+  .quick-actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .loading{color:var(--muted); padding:20px 2px; font-size:13px;}
+</style>
+
+<div id="app"><div class="loading">Loading ledger…</div></div>
+
+<script>
+(function(){
+  const app = document.getElementById('app');
+  let state = {
+    containers: [], hisaabs: [], payments: [], suppliers: [], claims: [],
+    tab: 'containers', openContainer: null, openHisaab: null, openSupplier: null,
+    loaded:false, loadError:null, needsAuth:false, authError:null
+  };
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function num(n){ return (Number(n)||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  function money(n){ return '₹' + Math.round(Number(n)||0).toLocaleString('en-IN'); }
+  function fmtDate(d){ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}); }
+  function today(){ return new Date().toISOString().slice(0,10); }
+  function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // --- This Purchase Ledger has its own independent backend and password ---
+  // Paste your deployed Apps Script Web App URL between the quotes below.
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzODOIf1Imymd9LR2Hu9NQ-LrGmcVoT-TVEdOyS-dXLYjU1efcNjJSL09aESkGRs2_7nA/exec';
+  const PW_KEY = 'NAMO_PURCHASE_PW';
+  let currentPw = localStorage.getItem(PW_KEY) || '';
+
+  async function apiGetAll(prefix){
+    const res = await fetch(API_URL + '?action=getAll&prefix=' + encodeURIComponent(prefix) + '&pw=' + encodeURIComponent(currentPw));
+    const data = await res.json();
+    if(data && data.error === 'unauthorized'){ const err = new Error('unauthorized'); err.code='unauthorized'; throw err; }
+    if(data && data.error) throw new Error(data.error);
+    return data;
+  }
+  async function apiSet(key, value){
+    const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ action:'set', key, value, pw: currentPw }) });
+    const data = await res.json();
+    if(data && data.error === 'unauthorized'){ const err = new Error('unauthorized'); err.code='unauthorized'; throw err; }
+    if(data && data.error) throw new Error(data.error);
+    return data;
+  }
+  async function apiDelete(key){
+    const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ action:'delete', key, pw: currentPw }) });
+    const data = await res.json();
+    if(data && data.error === 'unauthorized'){ const err = new Error('unauthorized'); err.code='unauthorized'; throw err; }
+    if(data && data.error) throw new Error(data.error);
+    return data;
+  }
+
+  async function loadAll(){
+    if(!API_URL || API_URL.indexOf('PASTE_YOUR') === 0){
+      state.loadError = 'This app isn\'t connected to its backend yet. Deploy the Apps Script and paste its URL into API_URL near the top of the file.';
+      state.loaded = true; render(); return;
+    }
+    if(!currentPw){ state.needsAuth = true; state.loaded = true; render(); return; }
+    try{
+      const [containerMap, hisaabMap, paymentMap, supplierMap, claimMap] = await Promise.all([
+        apiGetAll('container:'), apiGetAll('hisaab:'), apiGetAll('payment:'), apiGetAll('supplier:'), apiGetAll('claim:')
+      ]);
+      state.containers = Object.values(containerMap).map(v=>JSON.parse(v));
+      state.hisaabs = Object.values(hisaabMap).map(v=>JSON.parse(v));
+      state.payments = Object.values(paymentMap).map(v=>JSON.parse(v));
+      state.suppliers = Object.values(supplierMap).map(v=>JSON.parse(v));
+      state.claims = Object.values(claimMap).map(v=>JSON.parse(v));
+      state.loadError = null; state.needsAuth = false; state.authError = null;
+    }catch(e){
+      console.error('load error', e);
+      if(e.code==='unauthorized'){
+        localStorage.removeItem(PW_KEY); currentPw = '';
+        state.needsAuth = true; state.authError = 'Incorrect password.';
+      } else { state.loadError = (e && e.message) ? e.message : String(e); }
+    }
+    state.loaded = true;
+    render();
+  }
+
+  async function tryPassword(pw){
+    currentPw = pw; state.authError = null;
+    await loadAll();
+    if(!state.needsAuth) localStorage.setItem(PW_KEY, pw);
+  }
+
+  function nextContainerSeq(){ return state.containers.reduce((m,c)=> Math.max(m, Number(c.seq)||0), 0) + 1; }
+  function nextHisaabSeq(){ return state.hisaabs.reduce((m,h)=> Math.max(m, Number(h.seq)||0), 0) + 1; }
+
+  // --- Balances: container / advance / claim kept separate, net = container - payments ---
+  function supplierContainerBalance(partyId){
+    return state.hisaabs.filter(h=>h.partyId===partyId).reduce((s,h)=> s + (Number(h.netPayable)||0), 0);
+  }
+  function supplierAdvanceBalance(partyId){
+    return state.hisaabs.filter(h=>h.partyId===partyId).reduce((s,h)=> s + (Number(h.advance)||0), 0);
+  }
+  function supplierClaimBalance(partyId){
+    return state.claims.filter(cl=>cl.partyId===partyId).reduce((s,cl)=> s + (Number(cl.amount)||0), 0);
+  }
+  function supplierPayments(partyId){
+    return state.payments.filter(p=>p.partyId===partyId).reduce((s,p)=> s + (Number(p.amount)||0), 0);
+  }
+  function supplierNetBalance(partyId){
+    return supplierContainerBalance(partyId) - supplierClaimBalance(partyId) - supplierPayments(partyId);
+  }
+  function totalPayable(){
+    return state.suppliers.reduce((s,sup)=> s + Math.max(0, supplierNetBalance(sup.id)), 0);
+  }
+
+  async function saveContainer(data){ await apiSet('container:'+data.id, JSON.stringify(data)); state.containers.push(data); }
+  async function saveHisaab(data){
+    await apiSet('hisaab:'+data.id, JSON.stringify(data));
+    state.hisaabs.push(data);
+    if(data.containerId){
+      const c = state.containers.find(x=>x.id===data.containerId);
+      if(c){ c.hisaabSeq = data.seq; await apiSet('container:'+c.id, JSON.stringify(c)); }
+    }
+  }
+  async function savePayment(data){ await apiSet('payment:'+data.id, JSON.stringify(data)); state.payments.push(data); }
+  async function saveSupplier(data){ await apiSet('supplier:'+data.id, JSON.stringify(data)); state.suppliers.push(data); }
+
+  async function saveClaim(data){ await apiSet('claim:'+data.id, JSON.stringify(data)); state.claims.push(data); }
+  async function deleteContainer(id){ await apiDelete('container:'+id); state.containers = state.containers.filter(c=>c.id!==id); }
+  async function deleteHisaab(id){ await apiDelete('hisaab:'+id); state.hisaabs = state.hisaabs.filter(h=>h.id!==id); }
+  async function deletePayment(id){ await apiDelete('payment:'+id); state.payments = state.payments.filter(p=>p.id!==id); }
+  async function deleteClaim(id){ await apiDelete('claim:'+id); state.claims = state.claims.filter(c=>c.id!==id); }
+
+  function setTab(t){ state.tab = t; state.openContainer=null; state.openHisaab=null; state.openSupplier=null; render(); }
+
+  function renderLockScreen(){
+    let html = '<div style="max-width:320px;margin:60px auto 0;text-align:center;">';
+    html += '<h1 style="font-family:var(--font-head);font-size:20px;margin-bottom:6px;">Namo Steels — Purchase Ledger</h1>';
+    html += '<p style="color:var(--muted);font-size:12.5px;margin-bottom:24px;">Enter the password to continue</p>';
+    html += '<form class="panel" id="lock-form" style="text-align:left;">';
+    if(state.authError) html += '<div style="color:var(--red);font-size:12.5px;margin-bottom:10px;">'+escapeHtml(state.authError)+'</div>';
+    html += '<div class="field"><label>Password</label><input name="pw" type="password" autofocus required></div>';
+    html += '<button class="primary" type="submit" style="width:100%;">Unlock</button>';
+    html += '</form></div>';
+    return html;
+  }
+
+  function render(){
+    if(!state.loaded){ app.innerHTML = '<div class="loading">Loading ledger…</div>'; return; }
+    if(state.needsAuth){
+      app.innerHTML = renderLockScreen();
+      const lf = document.getElementById('lock-form');
+      if(lf) lf.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const pw = new FormData(lf).get('pw');
+        const btn = lf.querySelector('button'); btn.disabled = true; btn.textContent = 'Checking…';
+        await tryPassword(pw);
+      });
+      return;
+    }
+    const parts = [];
+    parts.push('<header class="top"><h1>Namo Steels — Purchase Ledger</h1><p>Containers, hisaab accounts &amp; supplier balances</p></header>');
+    if(state.loadError){
+      parts.push('<div style="background:#f5e2dc;border:1px solid var(--red);color:#7a3222;padding:10px 12px;font-size:12.5px;margin-bottom:16px;">Could not read saved data: '+escapeHtml(state.loadError)+'.</div>');
+    }
+    parts.push('<div style="display:flex;gap:8px;margin-bottom:16px;"><button class="ghost" id="refresh-btn">Refresh</button></div>');
+    parts.push('<nav class="tabs">');
+    [['containers','Containers'],['hisaab','Hisaab'],['suppliers','Suppliers']].forEach(([k,label])=>{
+      parts.push(`<button data-tab="${k}" class="${state.tab===k?'active':''}">${label}</button>`);
+    });
+    parts.push('</nav>');
+
+    if(state.tab==='containers') parts.push(renderContainersTab());
+    if(state.tab==='hisaab') parts.push(renderHisaabTab());
+    if(state.tab==='suppliers') parts.push(renderSuppliersTab());
+
+    app.innerHTML = parts.join('');
+    bindEvents();
+  }
+
+  function statusBadgeClass(st){
+    if(st==='Loaded'||st==='Arrived') return 'badge badge-loaded';
+    if(st==='Sold') return 'badge badge-sold';
+    return 'badge';
+  }
+
+  // ===================== TAB 1: CONTAINERS =====================
+  function renderContainersTab(){
+    let html = '<form class="panel" id="container-form">';
+    html += '<div class="field"><label>Supplier</label><select name="supplierId">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first (Suppliers tab)</option>') + '</select></div>';
+    html += '<div class="field-row"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Status</label><select name="status"><option>Booked</option><option>Loaded</option><option>Arrived</option><option>Sold</option></select></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Material</label><input name="material" list="material-list" placeholder="e.g. ALTS, AL SELF"></div><div class="field"><label>No. of containers</label><input name="numContainers" type="number" step="1" min="1" placeholder="1"></div></div>';
+    html += '<datalist id="material-list"><option value="ALTS"><option value="AL SELF"><option value="FE SELF"><option value="PUMP"><option value="COMBO"></datalist>';
+    html += '<div class="field"><label>Notes</label><textarea name="notes" placeholder="anything else about this container"></textarea></div>';
+    html += '<button class="primary" type="submit">Save container</button>';
+    html += '</form>';
+
+    html += '<div class="section-title">Containers</div>';
+    const containers = state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
+    if(containers.length===0){
+      html += '<div class="empty">No containers recorded yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      containers.forEach(c=>{
+        const s = state.suppliers.find(x=>x.id===c.supplierId);
+        const hisaabTag = c.hisaabSeq ? `<span class="hisaab-tag">Hisaab #${c.hisaabSeq}</span>` : `<span class="hisaab-tag none">No hisaab yet</span>`;
+        html += `<div class="row-item" data-open-container="${c.id}"><div><div class="name"><span class="seq">#${c.seq}</span> ${s?escapeHtml(s.name):'—'} ${hisaabTag}</div><div class="sub">${escapeHtml(c.material||'')} · ${fmtDate(c.date)} · ${c.numContainers||0} container${(c.numContainers||0)===1?'':'s'}</div></div><div><span class="${statusBadgeClass(c.status)}">${escapeHtml(c.status||'Booked')}</span></div></div>`;
+        if(state.openContainer===c.id) html += renderContainerDetail(c, s);
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function renderContainerDetail(c, s){
+    let html = '<div class="detail">';
+    html += `<div class="detail-head"><h3>Container #${c.seq}</h3><span class="${statusBadgeClass(c.status)}">${escapeHtml(c.status||'Booked')}</span></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Supplier</div><div class="l-amt" style="width:auto;">${s?escapeHtml(s.name):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Date</div><div class="l-amt" style="width:auto;">${fmtDate(c.date)}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Material</div><div class="l-amt" style="width:auto;">${escapeHtml(c.material||'—')}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">No. of containers</div><div class="l-amt" style="width:auto;">${c.numContainers||0}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Notes</div><div class="l-amt" style="width:auto;">${escapeHtml(c.notes||'—')}</div></div>`;
+    if(c.hisaabSeq){
+      html += `<div class="ledger-line"><div class="l-desc">Linked hisaab</div><div class="l-amt" style="width:auto;color:var(--rust);">#${c.hisaabSeq}</div></div>`;
+    }
+    html += '<div class="quick-actions">';
+    if(!c.hisaabSeq) html += `<button class="ghost" data-goto-tab="hisaab" data-preset-container="${c.id}">+ Create hisaab</button>`;
+    html += `<button class="ghost" data-delete-container="${c.id}">Delete container</button>`;
+    html += '</div></div>';
+    return html;
+  }
+
+  // ===================== TAB 2: HISAAB =====================
+  let presetContainer = null;
+
+  function supplierOptions(selectedId){
+    return state.suppliers.slice().sort((a,b)=>a.name.localeCompare(b.name))
+      .map(s=>`<option value="${s.id}" ${s.id===selectedId?'selected':''}>${escapeHtml(s.name)}</option>`).join('');
+  }
+  function containerOptionsFor(){
+    return state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0))
+      .map(c=>{ const s=state.suppliers.find(x=>x.id===c.supplierId); return `<option value="${c.id}" data-supplier="${c.supplierId}">#${c.seq} — ${escapeHtml(c.material||'')} — ${s?escapeHtml(s.name):''}</option>`; }).join('');
+  }
+
+  function renderHisaabTab(){
+    let html = '<form class="panel" id="hisaab-form">';
+    html += '<div class="form-sub-title">New hisaab / account</div>';
+    html += '<div class="field"><label>Container (optional)</label><select name="containerId" id="h-container"><option value="">— not linked to a container —</option>' + containerOptionsFor() + '</select></div>';
+    html += '<div class="field-row3"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Weight</label><input name="weight" id="h-weight" type="number" step="0.01"></div><div class="field"><label>Party</label><select name="partyId" id="h-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div></div>';
+    html += '<div class="field-row3"><div class="field"><label>Material</label><input name="material" id="h-material"></div><div class="field"><label>Rate</label><input name="rate" id="h-rate" type="number" step="0.01"></div><div class="field"><label>Amount</label><input type="text" id="h-amount-display" disabled></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Advance</label><input name="advance" id="h-advance" type="number" step="0.01" placeholder="0"></div><div class="field"><label>Total (material − advance)</label><input type="text" id="h-total-display" disabled></div></div>';
+    html += '<div class="field-row"><div class="field"><label>INR rate</label><input name="inrRate" id="h-inrrate" type="number" step="0.0001" placeholder="e.g. 83.5"></div><div class="field"><label>INR amount (total × INR rate)</label><input type="text" id="h-inramount-display" disabled></div></div>';
+    html += '<div class="field"><label>Bank charges</label><input name="bankCharges" id="h-bank" type="number" step="0.01" placeholder="0"></div>';
+    html += '<div class="calc-block"><div class="calc-line net"><span>Net payable</span><span id="h-net-display">₹0</span></div></div>';
+    html += '<button class="primary" type="submit" '+(state.suppliers.length?'':'disabled')+'>Save hisaab</button>';
+    html += '</form>';
+
+    html += '<form class="panel" id="payment-form">';
+    html += '<div class="form-sub-title">Record a payment</div>';
+    html += '<div class="field"><label>Party</label><select name="partyId">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div>';
+    html += '<div class="field-row"><div class="field"><label>Amount</label><input name="amount" type="number" step="0.01" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
+    html += '<div class="field"><label>Note</label><input name="note"></div>';
+    html += '<button class="primary" type="submit" '+(state.suppliers.length?'':'disabled')+'>Save payment</button>';
+    html += '</form>';
+
+    html += '<form class="panel" id="claim-form">';
+    html += '<div class="form-sub-title">Record a claim</div>';
+    html += '<div class="field"><label>Container no.</label><select name="containerId" id="cl-container"><option value="">— no specific container —</option>' + containerOptionsFor() + '</select></div>';
+    html += '<div class="field"><label>Party</label><select name="partyId" id="cl-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div>';
+    html += '<div class="field-row"><div class="field"><label>Claim amount</label><input name="amount" type="number" step="0.01" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
+    html += '<div class="field"><label>Footnote</label><input name="note" placeholder="reason for claim"></div>';
+    html += '<button class="primary" type="submit" '+(state.suppliers.length?'':'disabled')+'>Save claim</button>';
+    html += '</form>';
+
+    html += '<div class="section-title">Hisaab accounts</div>';
+    const hisaabs = state.hisaabs.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
+    if(hisaabs.length===0){
+      html += '<div class="empty">No hisaab entries yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      hisaabs.forEach(h=>{
+        const s = state.suppliers.find(x=>x.id===h.partyId);
+        html += `<div class="row-item" data-open-hisaab="${h.id}"><div><div class="name"><span class="seq">#${h.seq}</span> ${s?escapeHtml(s.name):'—'}</div><div class="sub">${escapeHtml(h.material||'')} · ${fmtDate(h.date)}</div></div><div class="amt pos">${money(h.netPayable)}</div></div>`;
+        if(state.openHisaab===h.id) html += renderHisaabVoucher(h, s);
+      });
+      html += '</div>';
+    }
+
+    html += '<div class="section-title">Payments</div>';
+    const payments = state.payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(payments.length===0){
+      html += '<div class="empty">No payments recorded yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      payments.forEach(p=>{
+        const s = state.suppliers.find(x=>x.id===p.partyId);
+        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}</div><div class="sub">${p.note?escapeHtml(p.note)+' · ':''}${fmtDate(p.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(p.amount)}</div><button class="line-del" data-delete-payment="${p.id}" title="Delete">✕</button></div></div>`;
+      });
+      html += '</div>';
+    }
+
+    html += '<div class="section-title">Claims</div>';
+    const claims = state.claims.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(claims.length===0){
+      html += '<div class="empty">No claims recorded yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      claims.forEach(cl=>{
+        const s = state.suppliers.find(x=>x.id===cl.partyId);
+        const c = state.containers.find(x=>x.id===cl.containerId);
+        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}${c?` <span class="seq">#${c.seq}</span>`:''}</div><div class="sub">${cl.note?escapeHtml(cl.note)+' · ':''}${fmtDate(cl.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(cl.amount)}</div><button class="line-del" data-delete-claim="${cl.id}" title="Delete">✕</button></div></div>`;
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function renderHisaabVoucher(h, s){
+    let html = '<div class="voucher">';
+    html += `<div class="voucher-head"><span>Hisaab #${h.seq}</span><span>${fmtDate(h.date)}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">Party</span><span class="vr-val">${s?escapeHtml(s.name):'—'}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">Weight</span><span class="vr-val">${h.weight||0}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">Material</span><span class="vr-val">${escapeHtml(h.material||'—')}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">Rate</span><span class="vr-val">${num(h.rate)}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">Amount</span><span class="vr-val">${num(h.grossAmount)}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">Advance</span><span class="vr-val">${num(h.advance)}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">Total</span><span class="vr-val">${num(h.total)}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">INR rate</span><span class="vr-val">${num(h.inrRate)}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">INR amount</span><span class="vr-val">${money(h.inrAmount)}</span></div>`;
+    html += `<div class="voucher-row"><span class="vr-label">Bank charges</span><span class="vr-val">${money(h.bankCharges)}</span></div>`;
+    html += `<div class="voucher-row net"><span class="vr-label">Net payable</span><span class="vr-val">${money(h.netPayable)}</span></div>`;
+    const relatedClaims = state.claims.filter(cl=>cl.containerId===h.containerId && h.containerId);
+    relatedClaims.forEach(cl=>{
+      html += `<div class="voucher-note">Claim: ${money(cl.amount)} — ${escapeHtml(cl.note||'')}</div>`;
+    });
+    html += `<div class="quick-actions"><button class="ghost" data-delete-hisaab="${h.id}">Delete this hisaab</button></div>`;
+    html += '</div>';
+    return html;
+  }
+
+  // ===================== TAB 3: SUPPLIERS =====================
+  function renderSuppliersTab(){
+    let html = '<div class="stat-row"><div class="stat"><div class="label">Total payable</div><div class="value">'+money(totalPayable())+'</div></div></div>';
+
+    html += '<form class="panel" id="supplier-form">';
+    html += '<div class="field-row"><div class="field"><label>Supplier name</label><input name="name" required></div><div class="field"><label>Phone</label><input name="phone"></div></div>';
+    html += '<button class="primary" type="submit">Add supplier</button>';
+    html += '</form>';
+
+    html += '<div class="section-title">Suppliers</div>';
+    if(state.suppliers.length===0){
+      html += '<div class="empty">No suppliers added yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      state.suppliers.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(s=>{
+        const net = supplierNetBalance(s.id);
+        const cls = net>0?'pos':(net<0?'neg':'zero');
+        html += `<div class="row-item" data-open-supplier="${s.id}"><div><div class="name">${escapeHtml(s.name)}</div>${s.phone?`<div class="sub">${escapeHtml(s.phone)}</div>`:''}</div><div class="amt ${cls}">${money(net)}</div></div>`;
+        if(state.openSupplier===s.id) html += renderSupplierDetail(s);
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function renderSupplierDetail(s){
+    const containerBal = supplierContainerBalance(s.id);
+    const advanceBal = supplierAdvanceBalance(s.id);
+    const claimBal = supplierClaimBalance(s.id);
+    const net = supplierNetBalance(s.id);
+    const hisaabs = state.hisaabs.filter(h=>h.partyId===s.id).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const payments = state.payments.filter(p=>p.partyId===s.id).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const claims = state.claims.filter(cl=>cl.partyId===s.id).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+
+    let html = '<div class="detail">';
+    html += `<div class="detail-head"><h3>${escapeHtml(s.name)}</h3><div class="bal">${money(net)}</div></div>`;
+    html += '<div class="balance-grid">';
+    html += `<div class="b-item"><div class="b-label">Container balance</div><div class="b-val">${money(containerBal)}</div></div>`;
+    html += `<div class="b-item"><div class="b-label">Advance balance</div><div class="b-val">${money(advanceBal)}</div></div>`;
+    html += `<div class="b-item"><div class="b-label">Claim balance</div><div class="b-val">${money(claimBal)}</div></div>`;
+    html += `<div class="b-item"><div class="b-label">Payments made</div><div class="b-val">${money(supplierPayments(s.id))}</div></div>`;
+    html += '</div>';
+
+    if(hisaabs.length===0 && payments.length===0 && claims.length===0){
+      html += '<div class="empty">No hisaab accounts, payments or claims yet.</div>';
+    } else {
+      let lines = [];
+      hisaabs.forEach(h=> lines.push({date:h.date, desc:`Hisaab #${h.seq} — ${h.material||''}`, amt:Number(h.netPayable)||0}));
+      payments.forEach(p=> lines.push({date:p.date, desc:'Payment'+(p.note?' ('+p.note+')':''), amt:-(Number(p.amount)||0)}));
+      claims.forEach(cl=>{
+        const c = state.containers.find(x=>x.id===cl.containerId);
+        lines.push({date:cl.date, desc:'Claim'+(c?' — Container #'+c.seq:'')+(cl.note?' ('+cl.note+')':''), amt:-(Number(cl.amount)||0)});
+      });
+      lines.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+      let running = 0;
+      lines.forEach(l=>{
+        running += l.amt;
+        html += `<div class="ledger-line"><div class="l-date">${fmtDate(l.date)}</div><div class="l-desc">${escapeHtml(l.desc)}</div><div class="l-amt">${l.amt>=0?'+':''}${money(l.amt)}</div></div>`;
+      });
+    }
+    html += `<div class="quick-actions"><button class="ghost" data-goto-tab="hisaab">+ Hisaab</button></div>`;
+    html += '</div>';
+    return html;
+  }
+
+  // ===================== Live hisaab calc =====================
+  function wireHisaabCalc(hf){
+    const containerSel = hf.querySelector('#h-container');
+    containerSel.addEventListener('change', ()=>{
+      const cid = containerSel.value;
+      const c = state.containers.find(x=>x.id===cid);
+      if(c){
+        hf.querySelector('#h-party').value = c.supplierId || '';
+        hf.querySelector('#h-material').value = c.material || '';
+        hf.querySelector('[name=date]').value = c.date || today();
+        refresh();
+      }
+    });
+    const refresh = ()=>{
+      const weight = Number(hf.querySelector('#h-weight').value)||0;
+      const rate = Number(hf.querySelector('#h-rate').value)||0;
+      const advance = Number(hf.querySelector('#h-advance').value)||0;
+      const inrRate = Number(hf.querySelector('#h-inrrate').value)||0;
+      const bankCharges = Number(hf.querySelector('#h-bank').value)||0;
+      const grossAmount = weight*rate;
+      const total = grossAmount - advance;
+      const inrAmount = total*inrRate;
+      const netPayable = inrAmount - bankCharges;
+      hf.querySelector('#h-amount-display').value = num(grossAmount);
+      hf.querySelector('#h-total-display').value = num(total);
+      hf.querySelector('#h-inramount-display').value = money(inrAmount);
+      hf.querySelector('#h-net-display').textContent = money(netPayable);
+    };
+    hf.addEventListener('input', refresh);
+    refresh();
+  }
+
+  function bindEvents(){
+    const refreshBtn = document.getElementById('refresh-btn');
+    if(refreshBtn) refreshBtn.addEventListener('click', ()=>{ refreshBtn.textContent='Refreshing…'; loadAll(); });
+
+    app.querySelectorAll('[data-tab]').forEach(b=> b.addEventListener('click', ()=> setTab(b.dataset.tab)));
+    app.querySelectorAll('[data-open-container]').forEach(el=> el.addEventListener('click', ()=>{
+      const id = el.dataset.openContainer; state.openContainer = state.openContainer===id?null:id; render();
+    }));
+    app.querySelectorAll('[data-open-hisaab]').forEach(el=> el.addEventListener('click', ()=>{
+      const id = el.dataset.openHisaab; state.openHisaab = state.openHisaab===id?null:id; render();
+    }));
+    app.querySelectorAll('[data-open-supplier]').forEach(el=> el.addEventListener('click', ()=>{
+      const id = el.dataset.openSupplier; state.openSupplier = state.openSupplier===id?null:id; render();
+    }));
+    app.querySelectorAll('[data-goto-tab]').forEach(el=> el.addEventListener('click', ()=>{
+      presetContainer = el.dataset.presetContainer || null;
+      state.tab = el.dataset.gotoTab;
+      state.openContainer=null; state.openHisaab=null; state.openSupplier=null;
+      render();
+      if(presetContainer){
+        const sel = document.getElementById('h-container');
+        if(sel){ sel.value = presetContainer; sel.dispatchEvent(new Event('change')); }
+      }
+    }));
+
+    app.querySelectorAll('[data-delete-container]').forEach(el=> el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Delete this container? This cannot be undone.')) return;
+      el.disabled = true;
+      try{ state.openContainer=null; await deleteContainer(el.dataset.deleteContainer); render(); }
+      catch(err){ console.error(err); el.disabled=false; alert('Could not delete — try again.'); }
+    }));
+    app.querySelectorAll('[data-delete-hisaab]').forEach(el=> el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Delete this hisaab? This cannot be undone.')) return;
+      el.disabled = true;
+      try{ state.openHisaab=null; await deleteHisaab(el.dataset.deleteHisaab); render(); }
+      catch(err){ console.error(err); el.disabled=false; alert('Could not delete — try again.'); }
+    }));
+    app.querySelectorAll('[data-delete-payment]').forEach(el=> el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Delete this payment? This cannot be undone.')) return;
+      el.disabled = true;
+      try{ await deletePayment(el.dataset.deletePayment); render(); }
+      catch(err){ console.error(err); el.disabled=false; alert('Could not delete — try again.'); }
+    }));
+    app.querySelectorAll('[data-delete-claim]').forEach(el=> el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Delete this claim? This cannot be undone.')) return;
+      el.disabled = true;
+      try{ await deleteClaim(el.dataset.deleteClaim); render(); }
+      catch(err){ console.error(err); el.disabled=false; alert('Could not delete — try again.'); }
+    }));
+
+    const cf = document.getElementById('container-form');
+    if(cf) cf.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(cf);
+      const data = { id: uid(), seq: nextContainerSeq(), supplierId: fd.get('supplierId')||'', date: fd.get('date')||today(), status: fd.get('status')||'Booked', material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0, notes: (fd.get('notes')||'').trim(), hisaabSeq: null };
+      const btn = cf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+      try{ await saveContainer(data); render(); }
+      catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save container'; alert('Could not save — try again.'); }
+    });
+
+    const hf = document.getElementById('hisaab-form');
+    if(hf){
+      wireHisaabCalc(hf);
+      if(presetContainer){ const sel = hf.querySelector('#h-container'); sel.value = presetContainer; sel.dispatchEvent(new Event('change')); }
+      hf.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(hf);
+        const weight = Number(fd.get('weight'))||0, rate = Number(fd.get('rate'))||0, advance = Number(fd.get('advance'))||0;
+        const inrRate = Number(fd.get('inrRate'))||0, bankCharges = Number(fd.get('bankCharges'))||0;
+        const grossAmount = weight*rate, total = grossAmount-advance, inrAmount = total*inrRate;
+        const netPayable = inrAmount - bankCharges;
+        const data = {
+          id: uid(), seq: nextHisaabSeq(), containerId: fd.get('containerId')||null, partyId: fd.get('partyId'),
+          date: fd.get('date')||today(), weight, material: (fd.get('material')||'').trim(), rate,
+          grossAmount, advance, total, inrRate, inrAmount, bankCharges, netPayable
+        };
+        if(!data.partyId){ alert('Please select a party.'); return; }
+        const btn = hf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+        try{ presetContainer=null; await saveHisaab(data); render(); }
+        catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save hisaab'; alert('Could not save — try again.'); }
+      });
+    }
+
+    const pf = document.getElementById('payment-form');
+    if(pf) pf.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(pf);
+      const data = { id: uid(), partyId: fd.get('partyId'), amount: Number(fd.get('amount'))||0, date: fd.get('date')||today(), note: (fd.get('note')||'').trim() };
+      if(!data.partyId){ alert('Please select a party.'); return; }
+      const btn = pf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+      try{ await savePayment(data); render(); }
+      catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save payment'; alert('Could not save — try again.'); }
+    });
+
+    const clf = document.getElementById('claim-form');
+    if(clf){
+      const clContainerSel = clf.querySelector('#cl-container');
+      clContainerSel.addEventListener('change', ()=>{
+        const c = state.containers.find(x=>x.id===clContainerSel.value);
+        if(c) clf.querySelector('#cl-party').value = c.supplierId || '';
+      });
+      clf.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(clf);
+        const data = { id: uid(), containerId: fd.get('containerId')||null, partyId: fd.get('partyId'), amount: Number(fd.get('amount'))||0, date: fd.get('date')||today(), note: (fd.get('note')||'').trim() };
+        if(!data.partyId){ alert('Please select a party.'); return; }
+        const btn = clf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+        try{ await saveClaim(data); render(); }
+        catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save claim'; alert('Could not save — try again.'); }
+      });
+    }
+
+    const sf = document.getElementById('supplier-form');
+    if(sf) sf.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(sf);
+      const data = { id: uid(), name: fd.get('name').trim(), phone: fd.get('phone').trim(), createdAt: today() };
+      if(!data.name) return;
+      const btn = sf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+      try{ await saveSupplier(data); render(); }
+      catch(err){ console.error(err); btn.disabled=false; btn.textContent='Add supplier'; alert('Could not save — try again.'); }
+    });
+  }
+
+  setTimeout(()=>{ if(!state.loaded){ state.loaded = true; state.loadError = 'Timed out reaching shared storage — check your internet connection and try Refresh.'; render(); } }, 8000);
+
+  loadAll();
+})();
+</script>
+</body>
+</html>
