@@ -232,6 +232,7 @@
     html += '<p style="color:var(--muted);font-size:12.5px;margin-bottom:24px;">Enter the password to continue</p>';
     html += '<form class="panel" id="lock-form" style="text-align:left;">';
     if(state.authError) html += '<div style="color:var(--red);font-size:12.5px;margin-bottom:10px;">'+escapeHtml(state.authError)+'</div>';
+    if(state.loadError) html += '<div style="color:var(--red);font-size:12.5px;margin-bottom:10px;">'+escapeHtml(state.loadError)+'</div>';
     html += '<div class="field"><label>Password</label><input name="pw" type="password" autofocus required></div>';
     html += '<button class="primary" type="submit" style="width:100%;">Unlock</button>';
     html += '</form></div>';
