@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Namo Steels — Purchase Ledger</title>
-<meta name="theme-color" content="#eef0e9">
+<meta name="theme-color" content="#d7dcc6">
 <meta name="description" content="Purchase ledger for Namo Steels — containers, hisaab accounts and supplier balances">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -17,7 +17,7 @@
   :root{
     /* Palette grounded in aged ledger paper and oxidised copper/brass —
        the two materials this business actually trades in. */
-    --bg:#eef0e9; --surface:#e3e7da; --surface-2:#d7dccb; --line:#c0c8b1;
+    --desk:#d7dcc6; --bg:#eef0e9; --surface:#e3e7da; --surface-2:#d7dccb; --line:#c0c8b1;
     --text:#273530; --muted:#69776a;
     --accent:#3f6b57; --accent-dim:#5c8470;   /* patina green — primary/interactive */
     --rust:#a85a2a;                            /* oxidised copper — payable amounts */
@@ -26,15 +26,37 @@
     --font-body:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{ background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
-  #app{max-width:640px; margin:0 auto; padding:20px 16px 60px;}
+  html{background:var(--desk);}
+  body{
+    background:var(--desk); color:var(--text); font-family:var(--font-body); font-size:14px; line-height:1.5;
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  /* The whole app reads as a bound ledger book resting on a desk — a spine
+     along the left edge, a lifted paper sheet, folder-style index tabs. */
+  #app{
+    max-width:640px; margin:0 auto; padding:0 0 48px;
+  }
+  .sheet{
+    background:var(--bg); border:1px solid var(--line); border-left:5px solid var(--accent-dim);
+    border-radius:2px 10px 10px 2px; box-shadow:0 10px 28px rgba(39,53,48,0.14), 0 2px 6px rgba(39,53,48,0.08);
+    margin:22px 10px 0; padding:22px 18px 26px;
+  }
   header.top{margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--line);}
-  header.top h1{font-family:var(--font-head); font-weight:600; font-size:23px; letter-spacing:0.1px; color:var(--text);}
-  header.top p{color:var(--muted); font-size:12.5px; margin-top:2px;}
+  header.top h1{font-family:var(--font-head); font-weight:600; font-size:22px; letter-spacing:0.1px; color:var(--text);}
+  header.top p{color:var(--muted); font-size:12.5px; margin-top:2px; font-style:italic;}
 
-  nav.tabs{display:flex; border-bottom:1px solid var(--line); margin-bottom:20px;}
-  nav.tabs button{ background:none; border:none; color:var(--muted); font-family:var(--font-body); font-size:13.5px; font-weight:500; padding:10px 14px 10px 0; margin-right:14px; cursor:pointer; border-bottom:2px solid transparent; position:relative; top:1px; }
-  nav.tabs button.active{color:var(--text); border-bottom-color:var(--accent);}
+  nav.tabs{display:flex; gap:5px; margin-bottom:20px;}
+  nav.tabs button{
+    background:var(--surface-2); color:var(--muted); border:1px solid var(--line);
+    border-bottom:2px solid var(--accent-dim); font-family:var(--font-head); font-weight:600;
+    font-size:13px; padding:9px 14px; cursor:pointer; border-radius:6px 6px 0 0;
+    position:relative; top:1px; transition:background 0.15s ease, color 0.15s ease;
+  }
+  nav.tabs button:hover:not(.active){background:var(--line); color:var(--text);}
+  nav.tabs button.active{
+    background:var(--bg); color:var(--accent-dim); border-color:var(--accent-dim);
+    border-bottom-color:var(--bg); top:0;
+  }
 
   .stat-row{display:flex; gap:10px; margin-bottom:22px; flex-wrap:wrap;}
   .stat{flex:1; min-width:130px; background:var(--surface); border:1px solid var(--line); padding:12px 13px 11px;}
@@ -112,7 +134,8 @@
   let state = {
     containers: [], hisaabs: [], payments: [], suppliers: [], claims: [],
     tab: 'containers', openContainer: null, openHisaab: null, openSupplier: null,
-    loaded:false, loadError:null, needsAuth:false, authError:null
+    loaded:false, loadError:null, needsAuth:false, authError:null,
+    containerFilterSupplier: '', containerFilterStatus: ''
   };
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -242,7 +265,7 @@
   function render(){
     if(!state.loaded){ app.innerHTML = '<div class="loading">Loading ledger…</div>'; return; }
     if(state.needsAuth){
-      app.innerHTML = renderLockScreen();
+      app.innerHTML = '<div class="sheet">' + renderLockScreen() + '</div>';
       const lf = document.getElementById('lock-form');
       if(lf) lf.addEventListener('submit', async (e)=>{
         e.preventDefault();
@@ -268,7 +291,7 @@
     if(state.tab==='hisaab') parts.push(renderHisaabTab());
     if(state.tab==='suppliers') parts.push(renderSuppliersTab());
 
-    app.innerHTML = parts.join('');
+    app.innerHTML = '<div class="sheet">' + parts.join('') + '</div>';
     bindEvents();
   }
 
@@ -284,21 +307,28 @@
     html += '<div class="field"><label>Supplier</label><select name="supplierId">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first (Suppliers tab)</option>') + '</select></div>';
     html += '<div class="field-row"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Status</label><select name="status"><option>Booked</option><option>Loaded</option><option>Arrived</option><option>Sold</option></select></div></div>';
     html += '<div class="field-row"><div class="field"><label>Material</label><input name="material" list="material-list" placeholder="e.g. ALTS, AL SELF"></div><div class="field"><label>No. of containers</label><input name="numContainers" type="number" step="1" min="1" placeholder="1"></div></div>';
+    html += '<div class="field"><label>Price</label><input name="price" type="number" step="any" placeholder="agreed price"></div>';
     html += '<datalist id="material-list"><option value="ALTS"><option value="AL SELF"><option value="FE SELF"><option value="PUMP"><option value="COMBO"></datalist>';
     html += '<div class="field"><label>Notes</label><textarea name="notes" placeholder="anything else about this container"></textarea></div>';
     html += '<button class="primary" type="submit">Save container</button>';
     html += '</form>';
 
     html += '<div class="section-title">Containers</div>';
-    const containers = state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
+    html += '<div class="field-row" style="margin-bottom:12px;">';
+    html += '<div class="field" style="margin-bottom:0;"><label>Filter by party</label><select id="filter-supplier"><option value="">All parties</option>' + supplierOptions(state.containerFilterSupplier) + '</select></div>';
+    html += '<div class="field" style="margin-bottom:0;"><label>Filter by status</label><select id="filter-status"><option value="">All statuses</option>' + ['Booked','Loaded','Arrived','Sold'].map(st=>`<option value="${st}" ${state.containerFilterStatus===st?'selected':''}>${st}</option>`).join('') + '</select></div>';
+    html += '</div>';
+    let containers = state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
+    if(state.containerFilterSupplier) containers = containers.filter(c=>c.supplierId===state.containerFilterSupplier);
+    if(state.containerFilterStatus) containers = containers.filter(c=>(c.status||'Booked')===state.containerFilterStatus);
     if(containers.length===0){
-      html += '<div class="empty">No containers recorded yet.</div>';
+      html += '<div class="empty">No containers match this filter.</div>';
     } else {
       html += '<div class="row-list">';
       containers.forEach(c=>{
         const s = state.suppliers.find(x=>x.id===c.supplierId);
         const hisaabTag = c.hisaabSeq ? `<span class="hisaab-tag">Hisaab #${c.hisaabSeq}</span>` : `<span class="hisaab-tag none">No hisaab yet</span>`;
-        html += `<div class="row-item" data-open-container="${c.id}"><div><div class="name"><span class="seq">#${c.seq}</span> ${s?escapeHtml(s.name):'—'} ${hisaabTag}</div><div class="sub">${escapeHtml(c.material||'')} · ${fmtDate(c.date)} · ${c.numContainers||0} container${(c.numContainers||0)===1?'':'s'}</div></div><div><span class="${statusBadgeClass(c.status)}">${escapeHtml(c.status||'Booked')}</span></div></div>`;
+        html += `<div class="row-item" data-open-container="${c.id}"><div><div class="name"><span class="seq">#${c.seq}</span> ${s?escapeHtml(s.name):'—'} ${hisaabTag}</div><div class="sub">${escapeHtml(c.material||'')} · ${fmtDate(c.date)} · ${c.numContainers||0} container${(c.numContainers||0)===1?'':'s'}${c.price?' · price '+num(c.price):''}</div></div><div><span class="${statusBadgeClass(c.status)}">${escapeHtml(c.status||'Booked')}</span></div></div>`;
         if(state.openContainer===c.id) html += renderContainerDetail(c, s);
       });
       html += '</div>';
@@ -313,6 +343,7 @@
     html += `<div class="ledger-line"><div class="l-desc">Date</div><div class="l-amt" style="width:auto;">${fmtDate(c.date)}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Material</div><div class="l-amt" style="width:auto;">${escapeHtml(c.material||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">No. of containers</div><div class="l-amt" style="width:auto;">${c.numContainers||0}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Price</div><div class="l-amt" style="width:auto;">${c.price!=null && c.price!==''?num(c.price):'—'}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Notes</div><div class="l-amt" style="width:auto;">${escapeHtml(c.notes||'—')}</div></div>`;
     if(c.hisaabSeq){
       html += `<div class="ledger-line"><div class="l-desc">Linked hisaab</div><div class="l-amt" style="width:auto;color:var(--rust);">#${c.hisaabSeq}</div></div>`;
@@ -340,11 +371,12 @@
     let html = '<form class="panel" id="hisaab-form">';
     html += '<div class="form-sub-title">New hisaab / account</div>';
     html += '<div class="field"><label>Container (optional)</label><select name="containerId" id="h-container"><option value="">— not linked to a container —</option>' + containerOptionsFor() + '</select></div>';
-    html += '<div class="field-row3"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Weight</label><input name="weight" id="h-weight" type="number" step="0.01"></div><div class="field"><label>Party</label><select name="partyId" id="h-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div></div>';
-    html += '<div class="field-row3"><div class="field"><label>Material</label><input name="material" id="h-material"></div><div class="field"><label>Rate</label><input name="rate" id="h-rate" type="number" step="0.01"></div><div class="field"><label>Amount</label><input type="text" id="h-amount-display" disabled></div></div>';
-    html += '<div class="field-row"><div class="field"><label>Advance</label><input name="advance" id="h-advance" type="number" step="0.01" placeholder="0"></div><div class="field"><label>Total (material − advance)</label><input type="text" id="h-total-display" disabled></div></div>';
-    html += '<div class="field-row"><div class="field"><label>INR rate</label><input name="inrRate" id="h-inrrate" type="number" step="0.0001" placeholder="e.g. 83.5"></div><div class="field"><label>INR amount (total × INR rate)</label><input type="text" id="h-inramount-display" disabled></div></div>';
-    html += '<div class="field"><label>Bank charges</label><input name="bankCharges" id="h-bank" type="number" step="0.01" placeholder="0"></div>';
+    html += '<div class="field-row3"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Weight</label><input name="weight" id="h-weight" type="number" step="any"></div><div class="field"><label>Party</label><select name="partyId" id="h-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div></div>';
+    html += '<div class="field-row3"><div class="field"><label>Material</label><input name="material" id="h-material"></div><div class="field"><label>Rate</label><input name="rate" id="h-rate" type="number" step="any"></div><div class="field"><label>Amount</label><input type="text" id="h-amount-display" disabled></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Advance</label><input name="advance" id="h-advance" type="number" step="any" placeholder="0"></div><div class="field"><label>Finance cost</label><input name="financeCost" id="h-finance" type="number" step="any" placeholder="0"></div></div>';
+    html += '<div class="field"><label>Total (material − advance + finance cost)</label><input type="text" id="h-total-display" disabled></div>';
+    html += '<div class="field-row"><div class="field"><label>INR rate</label><input name="inrRate" id="h-inrrate" type="number" step="any" placeholder="e.g. 83.5"></div><div class="field"><label>INR amount (total × INR rate)</label><input type="text" id="h-inramount-display" disabled></div></div>';
+    html += '<div class="field"><label>Bank charges</label><input name="bankCharges" id="h-bank" type="number" step="any" placeholder="0"></div>';
     html += '<div class="calc-block"><div class="calc-line net"><span>Net payable</span><span id="h-net-display">₹0</span></div></div>';
     html += '<button class="primary" type="submit" '+(state.suppliers.length?'':'disabled')+'>Save hisaab</button>';
     html += '</form>';
@@ -352,7 +384,7 @@
     html += '<form class="panel" id="payment-form">';
     html += '<div class="form-sub-title">Record a payment</div>';
     html += '<div class="field"><label>Party</label><select name="partyId">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div>';
-    html += '<div class="field-row"><div class="field"><label>Amount</label><input name="amount" type="number" step="0.01" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Amount</label><input name="amount" type="number" step="any" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
     html += '<div class="field"><label>Note</label><input name="note"></div>';
     html += '<button class="primary" type="submit" '+(state.suppliers.length?'':'disabled')+'>Save payment</button>';
     html += '</form>';
@@ -361,7 +393,7 @@
     html += '<div class="form-sub-title">Record a claim</div>';
     html += '<div class="field"><label>Container no.</label><select name="containerId" id="cl-container"><option value="">— no specific container —</option>' + containerOptionsFor() + '</select></div>';
     html += '<div class="field"><label>Party</label><select name="partyId" id="cl-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div>';
-    html += '<div class="field-row"><div class="field"><label>Claim amount</label><input name="amount" type="number" step="0.01" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Claim amount</label><input name="amount" type="number" step="any" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
     html += '<div class="field"><label>Footnote</label><input name="note" placeholder="reason for claim"></div>';
     html += '<button class="primary" type="submit" '+(state.suppliers.length?'':'disabled')+'>Save claim</button>';
     html += '</form>';
@@ -418,6 +450,9 @@
     html += `<div class="voucher-row"><span class="vr-label">Rate</span><span class="vr-val">${num(h.rate)}</span></div>`;
     html += `<div class="voucher-row"><span class="vr-label">Amount</span><span class="vr-val">${num(h.grossAmount)}</span></div>`;
     html += `<div class="voucher-row"><span class="vr-label">Advance</span><span class="vr-val">${num(h.advance)}</span></div>`;
+    if(Number(h.financeCost)>0){
+      html += `<div class="voucher-row"><span class="vr-label">Finance cost</span><span class="vr-val">${num(h.financeCost)}</span></div>`;
+    }
     html += `<div class="voucher-row"><span class="vr-label">Total</span><span class="vr-val">${num(h.total)}</span></div>`;
     html += `<div class="voucher-row"><span class="vr-label">INR rate</span><span class="vr-val">${num(h.inrRate)}</span></div>`;
     html += `<div class="voucher-row"><span class="vr-label">INR amount</span><span class="vr-val">${money(h.inrAmount)}</span></div>`;
@@ -514,10 +549,11 @@
       const weight = Number(hf.querySelector('#h-weight').value)||0;
       const rate = Number(hf.querySelector('#h-rate').value)||0;
       const advance = Number(hf.querySelector('#h-advance').value)||0;
+      const financeCost = Number(hf.querySelector('#h-finance').value)||0;
       const inrRate = Number(hf.querySelector('#h-inrrate').value)||0;
       const bankCharges = Number(hf.querySelector('#h-bank').value)||0;
       const grossAmount = weight*rate;
-      const total = grossAmount - advance;
+      const total = grossAmount - advance + financeCost;
       const inrAmount = total*inrRate;
       const netPayable = inrAmount - bankCharges;
       hf.querySelector('#h-amount-display').value = num(grossAmount);
@@ -532,6 +568,11 @@
   function bindEvents(){
     const refreshBtn = document.getElementById('refresh-btn');
     if(refreshBtn) refreshBtn.addEventListener('click', ()=>{ refreshBtn.textContent='Refreshing…'; loadAll(); });
+
+    const filterSupplier = document.getElementById('filter-supplier');
+    if(filterSupplier) filterSupplier.addEventListener('change', ()=>{ state.containerFilterSupplier = filterSupplier.value; render(); });
+    const filterStatus = document.getElementById('filter-status');
+    if(filterStatus) filterStatus.addEventListener('change', ()=>{ state.containerFilterStatus = filterStatus.value; render(); });
 
     app.querySelectorAll('[data-tab]').forEach(b=> b.addEventListener('click', ()=> setTab(b.dataset.tab)));
     app.querySelectorAll('[data-open-container]').forEach(el=> el.addEventListener('click', ()=>{
@@ -587,7 +628,7 @@
     if(cf) cf.addEventListener('submit', async (e)=>{
       e.preventDefault();
       const fd = new FormData(cf);
-      const data = { id: uid(), seq: nextContainerSeq(), supplierId: fd.get('supplierId')||'', date: fd.get('date')||today(), status: fd.get('status')||'Booked', material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0, notes: (fd.get('notes')||'').trim(), hisaabSeq: null };
+      const data = { id: uid(), seq: nextContainerSeq(), supplierId: fd.get('supplierId')||'', date: fd.get('date')||today(), status: fd.get('status')||'Booked', material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0, price: Number(fd.get('price'))||0, notes: (fd.get('notes')||'').trim(), hisaabSeq: null };
       const btn = cf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
       try{ await saveContainer(data); render(); }
       catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save container'; alert('Could not save — try again.'); }
@@ -601,13 +642,14 @@
         e.preventDefault();
         const fd = new FormData(hf);
         const weight = Number(fd.get('weight'))||0, rate = Number(fd.get('rate'))||0, advance = Number(fd.get('advance'))||0;
+        const financeCost = Number(fd.get('financeCost'))||0;
         const inrRate = Number(fd.get('inrRate'))||0, bankCharges = Number(fd.get('bankCharges'))||0;
-        const grossAmount = weight*rate, total = grossAmount-advance, inrAmount = total*inrRate;
+        const grossAmount = weight*rate, total = grossAmount-advance+financeCost, inrAmount = total*inrRate;
         const netPayable = inrAmount - bankCharges;
         const data = {
           id: uid(), seq: nextHisaabSeq(), containerId: fd.get('containerId')||null, partyId: fd.get('partyId'),
           date: fd.get('date')||today(), weight, material: (fd.get('material')||'').trim(), rate,
-          grossAmount, advance, total, inrRate, inrAmount, bankCharges, netPayable
+          grossAmount, advance, financeCost, total, inrRate, inrAmount, bankCharges, netPayable
         };
         if(!data.partyId){ alert('Please select a party.'); return; }
         const btn = hf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
