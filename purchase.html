@@ -15,27 +15,18 @@
 <body>
 <style>
   :root{
-    /* Palette grounded in aged ledger paper and oxidised copper/brass —
-       the two materials this business actually trades in. */
     --desk:#d7dcc6; --bg:#eef0e9; --surface:#e3e7da; --surface-2:#d7dccb; --line:#c0c8b1;
     --text:#273530; --muted:#69776a;
-    --accent:#3f6b57; --accent-dim:#5c8470;   /* patina green — primary/interactive */
-    --rust:#a85a2a;                            /* oxidised copper — payable amounts */
-    --red:#9c4330;                             /* brick red — overdue/alerts */
+    --accent:#3f6b57; --accent-dim:#5c8470;
+    --rust:#a85a2a;
+    --red:#9c4330;
     --font-head:'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
     --font-body:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html{background:var(--desk);}
-  body{
-    background:var(--desk); color:var(--text); font-family:var(--font-body); font-size:14px; line-height:1.5;
-    -webkit-font-smoothing:antialiased; min-height:100vh;
-  }
-  /* The whole app reads as a bound ledger book resting on a desk — a spine
-     along the left edge, a lifted paper sheet, folder-style index tabs. */
-  #app{
-    max-width:640px; margin:0 auto; padding:0 0 48px;
-  }
+  body{ background:var(--desk); color:var(--text); font-family:var(--font-body); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; min-height:100vh; }
+  #app{max-width:640px; margin:0 auto; padding:0 0 48px;}
   .sheet{
     background:var(--bg); border:1px solid var(--line); border-left:5px solid var(--accent-dim);
     border-radius:2px 10px 10px 2px; box-shadow:0 10px 28px rgba(39,53,48,0.14), 0 2px 6px rgba(39,53,48,0.08);
@@ -45,18 +36,15 @@
   header.top h1{font-family:var(--font-head); font-weight:600; font-size:22px; letter-spacing:0.1px; color:var(--text);}
   header.top p{color:var(--muted); font-size:12.5px; margin-top:2px; font-style:italic;}
 
-  nav.tabs{display:flex; gap:5px; margin-bottom:20px;}
+  nav.tabs{display:flex; gap:5px; margin-bottom:20px; flex-wrap:wrap;}
   nav.tabs button{
     background:var(--surface-2); color:var(--muted); border:1px solid var(--line);
     border-bottom:2px solid var(--accent-dim); font-family:var(--font-head); font-weight:600;
-    font-size:13px; padding:9px 14px; cursor:pointer; border-radius:6px 6px 0 0;
+    font-size:12.5px; padding:8px 12px; cursor:pointer; border-radius:6px 6px 0 0;
     position:relative; top:1px; transition:background 0.15s ease, color 0.15s ease;
   }
   nav.tabs button:hover:not(.active){background:var(--line); color:var(--text);}
-  nav.tabs button.active{
-    background:var(--bg); color:var(--accent-dim); border-color:var(--accent-dim);
-    border-bottom-color:var(--bg); top:0;
-  }
+  nav.tabs button.active{ background:var(--bg); color:var(--accent-dim); border-color:var(--accent-dim); border-bottom-color:var(--bg); top:0; }
 
   .stat-row{display:flex; gap:10px; margin-bottom:22px; flex-wrap:wrap;}
   .stat{flex:1; min-width:130px; background:var(--surface); border:1px solid var(--line); padding:12px 13px 11px;}
@@ -80,10 +68,13 @@
   form.panel .field{margin-bottom:10px;}
   form.panel label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px;}
   form.panel input, form.panel select, form.panel textarea{ width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text); padding:8px 9px; font-family:var(--font-body); font-size:13.5px; font-variant-numeric:tabular-nums; }
+  form.panel input[type=checkbox]{width:auto; accent-color:var(--accent);}
   form.panel textarea{font-variant-numeric:normal; resize:vertical; min-height:46px;}
   form.panel input:focus, form.panel select:focus, form.panel textarea:focus{outline:1px solid var(--accent);}
   .field-row{display:flex; gap:10px;} .field-row .field{flex:1;}
   .field-row3{display:flex; gap:8px;} .field-row3 .field{flex:1;}
+  .check-row{display:flex; gap:18px; margin-bottom:10px;}
+  .check-row label{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text);}
   button.primary{ background:var(--accent); color:#f4f6ef; border:none; padding:9px 16px; font-family:var(--font-body); font-weight:600; font-size:13.5px; cursor:pointer; margin-top:2px; transition:background 0.15s ease; }
   button.primary:hover:not(:disabled){background:var(--accent-dim);}
   button.primary:disabled{opacity:0.5; cursor:default;}
@@ -92,7 +83,6 @@
 
   .calc-block{background:var(--surface-2); border:1px solid var(--line); padding:10px 12px; margin:10px 0;}
   .calc-line{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); padding:3px 0; font-variant-numeric:tabular-nums;}
-  .calc-line.sub{padding-bottom:7px; border-bottom:1px solid var(--line); margin-bottom:2px;}
   .calc-line.net{border-top:1px solid var(--line); margin-top:6px; padding-top:8px; color:var(--text); font-weight:600; font-size:14px;}
 
   .voucher{background:var(--surface); border:1px solid var(--accent-dim); padding:14px; margin:-1px 0 14px; box-shadow:0 1px 3px rgba(39,53,48,0.06);}
@@ -103,13 +93,18 @@
   .voucher-row.net{font-weight:600; border-top:1px solid var(--line); margin-top:4px; padding-top:9px; border-bottom:none;}
   .voucher-note{font-size:12px; color:var(--muted); font-style:italic; margin-top:6px;}
   .seq{color:var(--muted); font-family:var(--font-head); font-size:12px;}
-  .badge{display:inline-block; font-size:11px; padding:2px 7px; border:1px solid var(--line); color:var(--muted);}
-  .badge-loaded, .badge-arrived{border-color:var(--rust); color:var(--rust);}
-  .badge-sold{border-color:var(--accent); color:var(--accent);}
+  .badge{display:inline-block; font-size:11px; padding:2px 7px; border:1px solid var(--line); color:var(--muted); white-space:nowrap;}
+  .badge-loaded{border-color:var(--rust); color:var(--rust);}
+  .badge-pending{border-color:var(--red); color:var(--red);}
+  .badge-arrived{border-color:var(--accent); color:var(--accent);}
   .hisaab-tag{font-size:11px; color:var(--rust); margin-left:6px;}
   .hisaab-tag.none{color:var(--muted);}
   .line-del{background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; padding:2px 0 2px 10px; flex-shrink:0;}
   .line-del:hover{color:var(--red);}
+
+  .chip-row{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
+  .chip{background:var(--surface-2); border:1px solid var(--line); color:var(--muted); font-size:11.5px; padding:6px 11px; border-radius:14px; cursor:pointer; font-family:var(--font-body);}
+  .chip.chip-active{background:var(--accent); color:#f4f6ef; border-color:var(--accent);}
 
   .detail{background:var(--surface); border:1px solid var(--accent-dim); padding:14px; margin:-1px 0 14px; box-shadow:0 1px 3px rgba(39,53,48,0.06);}
   .detail-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
@@ -124,6 +119,8 @@
   .ledger-line .l-amt{font-variant-numeric:tabular-nums; text-align:right; width:80px;}
   .quick-actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
   .loading{color:var(--muted); padding:20px 2px; font-size:13px;}
+  .inline-check{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text);}
+  .inline-check input{accent-color:var(--accent);}
 </style>
 
 <div id="app"><div class="loading">Loading ledger…</div></div>
@@ -131,11 +128,15 @@
 <script>
 (function(){
   const app = document.getElementById('app');
+  const STATUS_ORDER = ['Arrived', 'Arrived — Payment Pending', 'Loaded', 'Booked'];
+
   let state = {
     containers: [], hisaabs: [], payments: [], suppliers: [], claims: [],
-    tab: 'containers', openContainer: null, openHisaab: null, openSupplier: null,
-    loaded:false, loadError:null, needsAuth:false, authError:null,
-    containerFilterSupplier: '', containerFilterStatus: ''
+    tab: 'containers', openContainer: null, openHisaab: null,
+    editingContainerId: null,
+    activePartyId: null, partySubTab: 'containers',
+    allContractsFilter: [], partyContainerFilter: [],
+    loaded:false, loadError:null, needsAuth:false, authError:null
   };
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -145,8 +146,6 @@
   function today(){ return new Date().toISOString().slice(0,10); }
   function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-  // --- This Purchase Ledger has its own independent backend and password ---
-  // Paste your deployed Apps Script Web App URL between the quotes below.
   const API_URL = 'https://script.google.com/macros/s/AKfycbzODOIf1Imymd9LR2Hu9NQ-LrGmcVoT-TVEdOyS-dXLYjU1efcNjJSL09aESkGRs2_7nA/exec';
   const PW_KEY = 'NAMO_PURCHASE_PW';
   let currentPw = localStorage.getItem(PW_KEY) || '';
@@ -174,10 +173,6 @@
   }
 
   async function loadAll(){
-    if(!API_URL || API_URL.indexOf('PASTE_YOUR') === 0){
-      state.loadError = 'This app isn\'t connected to its backend yet. Deploy the Apps Script and paste its URL into API_URL near the top of the file.';
-      state.loaded = true; render(); return;
-    }
     if(!currentPw){ state.needsAuth = true; state.loaded = true; render(); return; }
     try{
       const [containerMap, hisaabMap, paymentMap, supplierMap, claimMap] = await Promise.all([
@@ -208,8 +203,36 @@
 
   function nextContainerSeq(){ return state.containers.reduce((m,c)=> Math.max(m, Number(c.seq)||0), 0) + 1; }
   function nextHisaabSeq(){ return state.hisaabs.reduce((m,h)=> Math.max(m, Number(h.seq)||0), 0) + 1; }
+  function generateOrderNo(seq, dateStr){
+    const year = (dateStr ? new Date(dateStr) : new Date()).getFullYear();
+    return 'NS' + String(seq).padStart(4,'0') + year;
+  }
 
-  // --- Balances: container / advance / claim kept separate, net = container - payments ---
+  // ---- Container status: fully automatic, derived from the data itself ----
+  function containerHisaab(c){ return state.hisaabs.find(h=>h.containerId===c.id) || null; }
+  function containerPaid(c){ return state.payments.filter(p=>p.containerId===c.id).reduce((s,p)=> s+(Number(p.amount)||0), 0); }
+  function containerBalance(c){
+    const h = containerHisaab(c);
+    if(!h) return null;
+    return (Number(h.netPayable)||0) - containerPaid(c);
+  }
+  function computeContainerStatus(c){
+    const h = containerHisaab(c);
+    if(h){
+      const bal = containerBalance(c);
+      return (bal!==null && bal<=0.01) ? 'Arrived' : 'Arrived — Payment Pending';
+    }
+    if(c.contNo || c.weight) return 'Loaded';
+    return 'Booked';
+  }
+  function statusBadgeClass(status){
+    if(status==='Arrived') return 'badge badge-arrived';
+    if(status==='Arrived — Payment Pending') return 'badge badge-pending';
+    if(status==='Loaded') return 'badge badge-loaded';
+    return 'badge';
+  }
+
+  // ---- Balances ----
   function supplierContainerBalance(partyId){
     return state.hisaabs.filter(h=>h.partyId===partyId).reduce((s,h)=> s + (Number(h.netPayable)||0), 0);
   }
@@ -223,13 +246,19 @@
     return state.payments.filter(p=>p.partyId===partyId).reduce((s,p)=> s + (Number(p.amount)||0), 0);
   }
   function supplierNetBalance(partyId){
-    return supplierContainerBalance(partyId) - supplierClaimBalance(partyId) - supplierPayments(partyId);
+    // Claims are tracked separately (they can take years to resolve) and are
+    // deliberately NOT netted into what's currently owed.
+    return supplierContainerBalance(partyId) - supplierPayments(partyId);
   }
   function totalPayable(){
     return state.suppliers.reduce((s,sup)=> s + Math.max(0, supplierNetBalance(sup.id)), 0);
   }
 
-  async function saveContainer(data){ await apiSet('container:'+data.id, JSON.stringify(data)); state.containers.push(data); }
+  async function saveContainer(data){
+    await apiSet('container:'+data.id, JSON.stringify(data));
+    const idx = state.containers.findIndex(c=>c.id===data.id);
+    if(idx>=0) state.containers[idx] = data; else state.containers.push(data);
+  }
   async function saveHisaab(data){
     await apiSet('hisaab:'+data.id, JSON.stringify(data));
     state.hisaabs.push(data);
@@ -240,14 +269,21 @@
   }
   async function savePayment(data){ await apiSet('payment:'+data.id, JSON.stringify(data)); state.payments.push(data); }
   async function saveSupplier(data){ await apiSet('supplier:'+data.id, JSON.stringify(data)); state.suppliers.push(data); }
-
   async function saveClaim(data){ await apiSet('claim:'+data.id, JSON.stringify(data)); state.claims.push(data); }
+
   async function deleteContainer(id){ await apiDelete('container:'+id); state.containers = state.containers.filter(c=>c.id!==id); }
   async function deleteHisaab(id){ await apiDelete('hisaab:'+id); state.hisaabs = state.hisaabs.filter(h=>h.id!==id); }
   async function deletePayment(id){ await apiDelete('payment:'+id); state.payments = state.payments.filter(p=>p.id!==id); }
   async function deleteClaim(id){ await apiDelete('claim:'+id); state.claims = state.claims.filter(c=>c.id!==id); }
 
-  function setTab(t){ state.tab = t; state.openContainer=null; state.openHisaab=null; state.openSupplier=null; render(); }
+  async function toggleContainerFlag(id, field){
+    const c = state.containers.find(x=>x.id===id); if(!c) return;
+    c[field] = !c[field];
+    await apiSet('container:'+id, JSON.stringify(c));
+    render();
+  }
+
+  function setTab(t){ state.tab = t; state.openContainer=null; state.openHisaab=null; state.editingContainerId=null; render(); }
 
   function renderLockScreen(){
     let html = '<div style="max-width:320px;margin:60px auto 0;text-align:center;">';
@@ -282,81 +318,19 @@
     }
     parts.push('<div style="display:flex;gap:8px;margin-bottom:16px;"><button class="ghost" id="refresh-btn">Refresh</button></div>');
     parts.push('<nav class="tabs">');
-    [['containers','Containers'],['hisaab','Hisaab'],['suppliers','Suppliers']].forEach(([k,label])=>{
+    [['containers','Containers'],['hisaab','Hisaab'],['parties','Parties'],['allcontracts','All Open Contracts']].forEach(([k,label])=>{
       parts.push(`<button data-tab="${k}" class="${state.tab===k?'active':''}">${label}</button>`);
     });
     parts.push('</nav>');
 
     if(state.tab==='containers') parts.push(renderContainersTab());
     if(state.tab==='hisaab') parts.push(renderHisaabTab());
-    if(state.tab==='suppliers') parts.push(renderSuppliersTab());
+    if(state.tab==='parties') parts.push(renderPartiesTab());
+    if(state.tab==='allcontracts') parts.push(renderAllContractsTab());
 
     app.innerHTML = '<div class="sheet">' + parts.join('') + '</div>';
     bindEvents();
   }
-
-  function statusBadgeClass(st){
-    if(st==='Loaded'||st==='Arrived') return 'badge badge-loaded';
-    if(st==='Sold') return 'badge badge-sold';
-    return 'badge';
-  }
-
-  // ===================== TAB 1: CONTAINERS =====================
-  function renderContainersTab(){
-    let html = '<form class="panel" id="container-form">';
-    html += '<div class="field"><label>Supplier</label><select name="supplierId">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first (Suppliers tab)</option>') + '</select></div>';
-    html += '<div class="field-row"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Status</label><select name="status"><option>Booked</option><option>Loaded</option><option>Arrived</option><option>Sold</option></select></div></div>';
-    html += '<div class="field-row"><div class="field"><label>Material</label><input name="material" list="material-list" placeholder="e.g. ALTS, AL SELF"></div><div class="field"><label>No. of containers</label><input name="numContainers" type="number" step="1" min="1" placeholder="1"></div></div>';
-    html += '<div class="field"><label>Price</label><input name="price" type="number" step="any" placeholder="agreed price"></div>';
-    html += '<datalist id="material-list"><option value="ALTS"><option value="AL SELF"><option value="FE SELF"><option value="PUMP"><option value="COMBO"></datalist>';
-    html += '<div class="field"><label>Notes</label><textarea name="notes" placeholder="anything else about this container"></textarea></div>';
-    html += '<button class="primary" type="submit">Save container</button>';
-    html += '</form>';
-
-    html += '<div class="section-title">Containers</div>';
-    html += '<div class="field-row" style="margin-bottom:12px;">';
-    html += '<div class="field" style="margin-bottom:0;"><label>Filter by party</label><select id="filter-supplier"><option value="">All parties</option>' + supplierOptions(state.containerFilterSupplier) + '</select></div>';
-    html += '<div class="field" style="margin-bottom:0;"><label>Filter by status</label><select id="filter-status"><option value="">All statuses</option>' + ['Booked','Loaded','Arrived','Sold'].map(st=>`<option value="${st}" ${state.containerFilterStatus===st?'selected':''}>${st}</option>`).join('') + '</select></div>';
-    html += '</div>';
-    let containers = state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
-    if(state.containerFilterSupplier) containers = containers.filter(c=>c.supplierId===state.containerFilterSupplier);
-    if(state.containerFilterStatus) containers = containers.filter(c=>(c.status||'Booked')===state.containerFilterStatus);
-    if(containers.length===0){
-      html += '<div class="empty">No containers match this filter.</div>';
-    } else {
-      html += '<div class="row-list">';
-      containers.forEach(c=>{
-        const s = state.suppliers.find(x=>x.id===c.supplierId);
-        const hisaabTag = c.hisaabSeq ? `<span class="hisaab-tag">Hisaab #${c.hisaabSeq}</span>` : `<span class="hisaab-tag none">No hisaab yet</span>`;
-        html += `<div class="row-item" data-open-container="${c.id}"><div><div class="name"><span class="seq">#${c.seq}</span> ${s?escapeHtml(s.name):'—'} ${hisaabTag}</div><div class="sub">${escapeHtml(c.material||'')} · ${fmtDate(c.date)} · ${c.numContainers||0} container${(c.numContainers||0)===1?'':'s'}${c.price?' · price '+num(c.price):''}</div></div><div><span class="${statusBadgeClass(c.status)}">${escapeHtml(c.status||'Booked')}</span></div></div>`;
-        if(state.openContainer===c.id) html += renderContainerDetail(c, s);
-      });
-      html += '</div>';
-    }
-    return html;
-  }
-
-  function renderContainerDetail(c, s){
-    let html = '<div class="detail">';
-    html += `<div class="detail-head"><h3>Container #${c.seq}</h3><span class="${statusBadgeClass(c.status)}">${escapeHtml(c.status||'Booked')}</span></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">Supplier</div><div class="l-amt" style="width:auto;">${s?escapeHtml(s.name):'—'}</div></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">Date</div><div class="l-amt" style="width:auto;">${fmtDate(c.date)}</div></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">Material</div><div class="l-amt" style="width:auto;">${escapeHtml(c.material||'—')}</div></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">No. of containers</div><div class="l-amt" style="width:auto;">${c.numContainers||0}</div></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">Price</div><div class="l-amt" style="width:auto;">${c.price!=null && c.price!==''?num(c.price):'—'}</div></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">Notes</div><div class="l-amt" style="width:auto;">${escapeHtml(c.notes||'—')}</div></div>`;
-    if(c.hisaabSeq){
-      html += `<div class="ledger-line"><div class="l-desc">Linked hisaab</div><div class="l-amt" style="width:auto;color:var(--rust);">#${c.hisaabSeq}</div></div>`;
-    }
-    html += '<div class="quick-actions">';
-    if(!c.hisaabSeq) html += `<button class="ghost" data-goto-tab="hisaab" data-preset-container="${c.id}">+ Create hisaab</button>`;
-    html += `<button class="ghost" data-delete-container="${c.id}">Delete container</button>`;
-    html += '</div></div>';
-    return html;
-  }
-
-  // ===================== TAB 2: HISAAB =====================
-  let presetContainer = null;
 
   function supplierOptions(selectedId){
     return state.suppliers.slice().sort((a,b)=>a.name.localeCompare(b.name))
@@ -364,9 +338,115 @@
   }
   function containerOptionsFor(){
     return state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0))
-      .map(c=>{ const s=state.suppliers.find(x=>x.id===c.supplierId); return `<option value="${c.id}" data-supplier="${c.supplierId}">#${c.seq} — ${escapeHtml(c.material||'')} — ${s?escapeHtml(s.name):''}</option>`; }).join('');
+      .map(c=>{ const s=state.suppliers.find(x=>x.id===c.supplierId); return `<option value="${c.id}" data-supplier="${c.supplierId}">${c.orderNo||('#'+c.seq)} — ${escapeHtml(c.material||'')} — ${s?escapeHtml(s.name):''}</option>`; }).join('');
   }
 
+  // ===================== Shared: container row + detail + grouped list =====================
+  function renderContainerRow(c, showParty){
+    const s = state.suppliers.find(x=>x.id===c.supplierId);
+    const status = computeContainerStatus(c);
+    const hisaabTag = c.hisaabSeq ? `<span class="hisaab-tag">Hisaab #${c.hisaabSeq}</span>` : `<span class="hisaab-tag none">No hisaab yet</span>`;
+    const subBits = [escapeHtml(c.material||'')];
+    if(c.numContainers) subBits.push(c.numContainers+' cont');
+    if(c.weight) subBits.push(num(c.weight)+(typeof c.weight==='number'?' t':''));
+    if(c.contNo) subBits.push(escapeHtml(c.contNo));
+    if(c.shippingLine) subBits.push(escapeHtml(c.shippingLine));
+    subBits.push(fmtDate(c.date));
+    return `<div class="row-item" data-open-container="${c.id}"><div><div class="name"><span class="seq">${escapeHtml(c.orderNo||('#'+c.seq))}</span> ${showParty && s?escapeHtml(s.name)+' ':''}${hisaabTag}</div><div class="sub">${subBits.filter(Boolean).join(' · ')}</div></div><div><span class="${statusBadgeClass(status)}">${status}</span></div></div>`;
+  }
+
+  function renderContainerDetail(c, s){
+    const status = computeContainerStatus(c);
+    let html = '<div class="detail">';
+    html += `<div class="detail-head"><h3>${escapeHtml(c.orderNo||('#'+c.seq))}</h3><span class="${statusBadgeClass(status)}">${status}</span></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Supplier</div><div class="l-amt" style="width:auto;">${s?escapeHtml(s.name):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Date</div><div class="l-amt" style="width:auto;">${fmtDate(c.date)}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Material</div><div class="l-amt" style="width:auto;">${escapeHtml(c.material||'—')}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">No. of containers</div><div class="l-amt" style="width:auto;">${c.numContainers||0}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Weight</div><div class="l-amt" style="width:auto;">${c.weight?num(c.weight):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Container no.</div><div class="l-amt" style="width:auto;">${escapeHtml(c.contNo||'—')}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Shipping line</div><div class="l-amt" style="width:auto;">${escapeHtml(c.shippingLine||'—')}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Price</div><div class="l-amt" style="width:auto;">${c.price?num(c.price):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Notes</div><div class="l-amt" style="width:auto;">${escapeHtml(c.notes||'—')}</div></div>`;
+    if(c.hisaabSeq){
+      html += `<div class="ledger-line"><div class="l-desc">Linked hisaab</div><div class="l-amt" style="width:auto;color:var(--rust);">#${c.hisaabSeq}</div></div>`;
+    }
+    html += '<div class="check-row" style="margin-top:10px;">';
+    html += `<label class="inline-check"><input type="checkbox" data-toggle-duty="${c.id}" ${c.dutyPaid?'checked':''}> Duty paid</label>`;
+    html += `<label class="inline-check"><input type="checkbox" data-toggle-shipping="${c.id}" ${c.shippingPaid?'checked':''}> Shipping payment made</label>`;
+    html += '</div>';
+    html += '<div class="quick-actions">';
+    if(!c.hisaabSeq) html += `<button class="ghost" data-goto-tab="hisaab" data-preset-container="${c.id}">+ Create hisaab</button>`;
+    html += `<button class="ghost" data-edit-container="${c.id}">Edit container</button>`;
+    html += `<button class="ghost" data-delete-container="${c.id}">Delete container</button>`;
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderStatusChips(selected, attr){
+    return '<div class="chip-row">' + STATUS_ORDER.map(st=>
+      `<button type="button" class="chip ${selected.includes(st)?'chip-active':''}" data-${attr}="${escapeHtml(st)}">${st}</button>`
+    ).join('') + '</div>';
+  }
+
+  function renderContainerGroupedList(containers, filterStatuses, showParty){
+    let filtered = containers;
+    if(filterStatuses && filterStatuses.length){
+      filtered = filtered.filter(c=> filterStatuses.includes(computeContainerStatus(c)));
+    }
+    if(filtered.length===0) return '<div class="empty">No containers match.</div>';
+    const sorted = filtered.slice().sort((a,b)=>{
+      const oa = STATUS_ORDER.indexOf(computeContainerStatus(a));
+      const ob = STATUS_ORDER.indexOf(computeContainerStatus(b));
+      if(oa!==ob) return oa-ob;
+      return (Number(b.seq)||0)-(Number(a.seq)||0);
+    });
+    let html = '<div class="row-list">';
+    sorted.forEach(c=>{
+      const s = state.suppliers.find(x=>x.id===c.supplierId);
+      html += renderContainerRow(c, showParty);
+      if(state.openContainer===c.id) html += renderContainerDetail(c, s);
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // ===================== TAB: CONTAINERS =====================
+  let presetContainer = null;
+
+  function renderContainersTab(){
+    const editing = state.editingContainerId ? state.containers.find(c=>c.id===state.editingContainerId) : null;
+    let html = '<form class="panel" id="container-form">';
+    html += '<div class="form-sub-title">'+(editing?'Edit container':'New container / order')+'</div>';
+    html += '<div class="field"><label>Supplier</label><select name="supplierId">' + (state.suppliers.length? supplierOptions(editing?editing.supplierId:null) : '<option value="">Add a supplier first (Parties tab)</option>') + '</select></div>';
+    html += '<div class="field-row"><div class="field"><label>Date</label><input name="date" type="date" value="'+(editing?editing.date:today())+'"></div><div class="field"><label>No. of containers</label><input name="numContainers" type="number" step="1" min="1" placeholder="1" value="'+(editing&&editing.numContainers?editing.numContainers:'')+'"></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Material</label><input name="material" list="material-list" placeholder="e.g. ALTS, AL SELF" value="'+escapeHtml(editing?editing.material||'':'')+'"></div><div class="field"><label>Price</label><input name="price" type="number" step="any" placeholder="agreed price" value="'+(editing&&editing.price?editing.price:'')+'"></div></div>';
+    html += '<datalist id="material-list"><option value="ALTS"><option value="AL SELF"><option value="FE SELF"><option value="PUMP"><option value="COMBO"></datalist>';
+    html += '<div class="field-row"><div class="field"><label>Container no.</label><input name="contNo" placeholder="actual container number" value="'+escapeHtml(editing?editing.contNo||'':'')+'"></div><div class="field"><label>Shipping line</label><input name="shippingLine" placeholder="e.g. Maersk, MSC" value="'+escapeHtml(editing?editing.shippingLine||'':'')+'"></div></div>';
+    html += '<div class="field"><label>Weight</label><input name="weight" type="number" step="any" placeholder="once known" value="'+(editing&&editing.weight?editing.weight:'')+'"></div>';
+    html += '<div class="field"><label>Notes</label><textarea name="notes" placeholder="anything else about this container">'+escapeHtml(editing?editing.notes||'':'')+'</textarea></div>';
+    html += '<p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Status is set automatically — Booked when created, Loaded once a container no. or weight is filled in, then Arrived (Payment Pending / Arrived) once a hisaab and payments are recorded.</p>';
+    html += '<div style="display:flex;gap:8px;"><button class="primary" type="submit">'+(editing?'Update container':'Save container')+'</button>';
+    if(editing) html += '<button type="button" class="ghost" id="cancel-edit-container">Cancel</button>';
+    html += '</div></form>';
+
+    html += '<div class="section-title">Containers</div>';
+    const containers = state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
+    if(containers.length===0){
+      html += '<div class="empty">No containers recorded yet.</div>';
+    } else {
+      html += '<div class="row-list">';
+      containers.forEach(c=>{
+        const s = state.suppliers.find(x=>x.id===c.supplierId);
+        html += renderContainerRow(c, true);
+        if(state.openContainer===c.id) html += renderContainerDetail(c, s);
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  // ===================== TAB: HISAAB =====================
   function renderHisaabTab(){
     let html = '<form class="panel" id="hisaab-form">';
     html += '<div class="form-sub-title">New hisaab / account</div>';
@@ -383,7 +463,8 @@
 
     html += '<form class="panel" id="payment-form">';
     html += '<div class="form-sub-title">Record a payment</div>';
-    html += '<div class="field"><label>Party</label><select name="partyId">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div>';
+    html += '<div class="field"><label>Container (optional — marks that container as paid)</label><select name="containerId" id="pay-container"><option value="">— general payment, not tied to a container —</option>' + containerOptionsFor() + '</select></div>';
+    html += '<div class="field"><label>Party</label><select name="partyId" id="pay-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div>';
     html += '<div class="field-row"><div class="field"><label>Amount</label><input name="amount" type="number" step="any" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
     html += '<div class="field"><label>Note</label><input name="note"></div>';
     html += '<button class="primary" type="submit" '+(state.suppliers.length?'':'disabled')+'>Save payment</button>';
@@ -420,7 +501,8 @@
       html += '<div class="row-list">';
       payments.forEach(p=>{
         const s = state.suppliers.find(x=>x.id===p.partyId);
-        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}</div><div class="sub">${p.note?escapeHtml(p.note)+' · ':''}${fmtDate(p.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(p.amount)}</div><button class="line-del" data-delete-payment="${p.id}" title="Delete">✕</button></div></div>`;
+        const c = state.containers.find(x=>x.id===p.containerId);
+        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}${c?` <span class="seq">${escapeHtml(c.orderNo||('#'+c.seq))}</span>`:''}</div><div class="sub">${p.note?escapeHtml(p.note)+' · ':''}${fmtDate(p.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(p.amount)}</div><button class="line-del" data-delete-payment="${p.id}" title="Delete">✕</button></div></div>`;
       });
       html += '</div>';
     }
@@ -434,7 +516,7 @@
       claims.forEach(cl=>{
         const s = state.suppliers.find(x=>x.id===cl.partyId);
         const c = state.containers.find(x=>x.id===cl.containerId);
-        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}${c?` <span class="seq">#${c.seq}</span>`:''}</div><div class="sub">${cl.note?escapeHtml(cl.note)+' · ':''}${fmtDate(cl.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(cl.amount)}</div><button class="line-del" data-delete-claim="${cl.id}" title="Delete">✕</button></div></div>`;
+        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}${c?` <span class="seq">${escapeHtml(c.orderNo||('#'+c.seq))}</span>`:''}</div><div class="sub">${cl.note?escapeHtml(cl.note)+' · ':''}${fmtDate(cl.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(cl.amount)}</div><button class="line-del" data-delete-claim="${cl.id}" title="Delete">✕</button></div></div>`;
       });
       html += '</div>';
     }
@@ -458,6 +540,10 @@
     html += `<div class="voucher-row"><span class="vr-label">INR amount</span><span class="vr-val">${money(h.inrAmount)}</span></div>`;
     html += `<div class="voucher-row"><span class="vr-label">Bank charges</span><span class="vr-val">${money(h.bankCharges)}</span></div>`;
     html += `<div class="voucher-row net"><span class="vr-label">Net payable</span><span class="vr-val">${money(h.netPayable)}</span></div>`;
+    if(h.containerId){
+      const bal = containerBalance(state.containers.find(x=>x.id===h.containerId) || {});
+      html += `<div class="voucher-note">Remaining on this container: ${money(bal)}</div>`;
+    }
     const relatedClaims = state.claims.filter(cl=>cl.containerId===h.containerId && h.containerId);
     relatedClaims.forEach(cl=>{
       html += `<div class="voucher-note">Claim: ${money(cl.amount)} — ${escapeHtml(cl.note||'')}</div>`;
@@ -467,8 +553,11 @@
     return html;
   }
 
-  // ===================== TAB 3: SUPPLIERS =====================
-  function renderSuppliersTab(){
+  // ===================== TAB: PARTIES =====================
+  function renderPartiesTab(){
+    if(state.activePartyId){
+      return renderPartyDedicatedPage();
+    }
     let html = '<div class="stat-row"><div class="stat"><div class="label">Total payable</div><div class="value">'+money(totalPayable())+'</div></div></div>';
 
     html += '<form class="panel" id="supplier-form">';
@@ -476,7 +565,7 @@
     html += '<button class="primary" type="submit">Add supplier</button>';
     html += '</form>';
 
-    html += '<div class="section-title">Suppliers</div>';
+    html += '<div class="section-title">Parties</div>';
     if(state.suppliers.length===0){
       html += '<div class="empty">No suppliers added yet.</div>';
     } else {
@@ -484,51 +573,70 @@
       state.suppliers.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(s=>{
         const net = supplierNetBalance(s.id);
         const cls = net>0?'pos':(net<0?'neg':'zero');
-        html += `<div class="row-item" data-open-supplier="${s.id}"><div><div class="name">${escapeHtml(s.name)}</div>${s.phone?`<div class="sub">${escapeHtml(s.phone)}</div>`:''}</div><div class="amt ${cls}">${money(net)}</div></div>`;
-        if(state.openSupplier===s.id) html += renderSupplierDetail(s);
+        html += `<div class="row-item" data-open-party-page="${s.id}"><div><div class="name">${escapeHtml(s.name)}</div>${s.phone?`<div class="sub">${escapeHtml(s.phone)}</div>`:''}</div><div class="amt ${cls}">${money(net)}</div></div>`;
       });
       html += '</div>';
     }
     return html;
   }
 
-  function renderSupplierDetail(s){
-    const containerBal = supplierContainerBalance(s.id);
-    const advanceBal = supplierAdvanceBalance(s.id);
-    const claimBal = supplierClaimBalance(s.id);
-    const net = supplierNetBalance(s.id);
-    const hisaabs = state.hisaabs.filter(h=>h.partyId===s.id).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-    const payments = state.payments.filter(p=>p.partyId===s.id).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-    const claims = state.claims.filter(cl=>cl.partyId===s.id).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  function renderPartyDedicatedPage(){
+    const s = state.suppliers.find(x=>x.id===state.activePartyId);
+    if(!s){ state.activePartyId=null; return renderPartiesTab(); }
 
-    let html = '<div class="detail">';
-    html += `<div class="detail-head"><h3>${escapeHtml(s.name)}</h3><div class="bal">${money(net)}</div></div>`;
+    let html = '<button class="ghost" data-back-to-parties style="margin-bottom:14px;">← All parties</button>';
+    html += `<div class="detail-head" style="margin-bottom:6px;"><h3>${escapeHtml(s.name)}</h3><div class="bal">${money(supplierNetBalance(s.id))}</div></div>`;
     html += '<div class="balance-grid">';
-    html += `<div class="b-item"><div class="b-label">Container balance</div><div class="b-val">${money(containerBal)}</div></div>`;
-    html += `<div class="b-item"><div class="b-label">Advance balance</div><div class="b-val">${money(advanceBal)}</div></div>`;
-    html += `<div class="b-item"><div class="b-label">Claim balance</div><div class="b-val">${money(claimBal)}</div></div>`;
+    html += `<div class="b-item"><div class="b-label">Container balance</div><div class="b-val">${money(supplierContainerBalance(s.id))}</div></div>`;
+    html += `<div class="b-item"><div class="b-label">Advance balance</div><div class="b-val">${money(supplierAdvanceBalance(s.id))}</div></div>`;
+    html += `<div class="b-item"><div class="b-label">Claim balance</div><div class="b-val">${money(supplierClaimBalance(s.id))}</div></div>`;
     html += `<div class="b-item"><div class="b-label">Payments made</div><div class="b-val">${money(supplierPayments(s.id))}</div></div>`;
     html += '</div>';
 
-    if(hisaabs.length===0 && payments.length===0 && claims.length===0){
-      html += '<div class="empty">No hisaab accounts, payments or claims yet.</div>';
-    } else {
-      let lines = [];
-      hisaabs.forEach(h=> lines.push({date:h.date, desc:`Hisaab #${h.seq} — ${h.material||''}`, amt:Number(h.netPayable)||0}));
-      payments.forEach(p=> lines.push({date:p.date, desc:'Payment'+(p.note?' ('+p.note+')':''), amt:-(Number(p.amount)||0)}));
-      claims.forEach(cl=>{
-        const c = state.containers.find(x=>x.id===cl.containerId);
-        lines.push({date:cl.date, desc:'Claim'+(c?' — Container #'+c.seq:'')+(cl.note?' ('+cl.note+')':''), amt:-(Number(cl.amount)||0)});
-      });
-      lines.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-      let running = 0;
-      lines.forEach(l=>{
-        running += l.amt;
-        html += `<div class="ledger-line"><div class="l-date">${fmtDate(l.date)}</div><div class="l-desc">${escapeHtml(l.desc)}</div><div class="l-amt">${l.amt>=0?'+':''}${money(l.amt)}</div></div>`;
-      });
+    html += '<nav class="tabs">';
+    [['containers','Containers'],['hisaab','Hisaab'],['claims','Claims']].forEach(([k,label])=>{
+      html += `<button data-party-subtab="${k}" class="${state.partySubTab===k?'active':''}">${label}</button>`;
+    });
+    html += '</nav>';
+
+    if(state.partySubTab==='containers'){
+      const myContainers = state.containers.filter(c=>c.supplierId===s.id);
+      html += renderStatusChips(state.partyContainerFilter, 'party-status-filter');
+      html += renderContainerGroupedList(myContainers, state.partyContainerFilter, false);
     }
-    html += `<div class="quick-actions"><button class="ghost" data-goto-tab="hisaab">+ Hisaab</button></div>`;
-    html += '</div>';
+    if(state.partySubTab==='hisaab'){
+      const myHisaabs = state.hisaabs.filter(h=>h.partyId===s.id).sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
+      if(myHisaabs.length===0){
+        html += '<div class="empty">No hisaab accounts yet.</div>';
+      } else {
+        html += '<div class="row-list">';
+        myHisaabs.forEach(h=>{
+          html += `<div class="row-item" data-open-hisaab="${h.id}"><div><div class="name"><span class="seq">#${h.seq}</span> ${escapeHtml(h.material||'')}</div><div class="sub">${fmtDate(h.date)}</div></div><div class="amt pos">${money(h.netPayable)}</div></div>`;
+          if(state.openHisaab===h.id) html += renderHisaabVoucher(h, s);
+        });
+        html += '</div>';
+      }
+    }
+    if(state.partySubTab==='claims'){
+      const myClaims = state.claims.filter(cl=>cl.partyId===s.id).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      if(myClaims.length===0){
+        html += '<div class="empty">No claims yet.</div>';
+      } else {
+        html += '<div class="row-list">';
+        myClaims.forEach(cl=>{
+          const c = state.containers.find(x=>x.id===cl.containerId);
+          html += `<div class="row-item" style="cursor:default;"><div><div class="name">${c?escapeHtml(c.orderNo||('#'+c.seq)):'General claim'}</div><div class="sub">${cl.note?escapeHtml(cl.note)+' · ':''}${fmtDate(cl.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(cl.amount)}</div><button class="line-del" data-delete-claim="${cl.id}" title="Delete">✕</button></div></div>`;
+        });
+        html += '</div>';
+      }
+    }
+    return html;
+  }
+
+  // ===================== TAB: ALL OPEN CONTRACTS =====================
+  function renderAllContractsTab(){
+    let html = renderStatusChips(state.allContractsFilter, 'all-status-filter');
+    html += renderContainerGroupedList(state.containers, state.allContractsFilter, true);
     return html;
   }
 
@@ -542,6 +650,7 @@
         hf.querySelector('#h-party').value = c.supplierId || '';
         hf.querySelector('#h-material').value = c.material || '';
         hf.querySelector('[name=date]').value = c.date || today();
+        if(c.weight) hf.querySelector('#h-weight').value = c.weight;
         refresh();
       }
     });
@@ -569,11 +678,6 @@
     const refreshBtn = document.getElementById('refresh-btn');
     if(refreshBtn) refreshBtn.addEventListener('click', ()=>{ refreshBtn.textContent='Refreshing…'; loadAll(); });
 
-    const filterSupplier = document.getElementById('filter-supplier');
-    if(filterSupplier) filterSupplier.addEventListener('change', ()=>{ state.containerFilterSupplier = filterSupplier.value; render(); });
-    const filterStatus = document.getElementById('filter-status');
-    if(filterStatus) filterStatus.addEventListener('change', ()=>{ state.containerFilterStatus = filterStatus.value; render(); });
-
     app.querySelectorAll('[data-tab]').forEach(b=> b.addEventListener('click', ()=> setTab(b.dataset.tab)));
     app.querySelectorAll('[data-open-container]').forEach(el=> el.addEventListener('click', ()=>{
       const id = el.dataset.openContainer; state.openContainer = state.openContainer===id?null:id; render();
@@ -581,18 +685,45 @@
     app.querySelectorAll('[data-open-hisaab]').forEach(el=> el.addEventListener('click', ()=>{
       const id = el.dataset.openHisaab; state.openHisaab = state.openHisaab===id?null:id; render();
     }));
-    app.querySelectorAll('[data-open-supplier]').forEach(el=> el.addEventListener('click', ()=>{
-      const id = el.dataset.openSupplier; state.openSupplier = state.openSupplier===id?null:id; render();
+    app.querySelectorAll('[data-open-party-page]').forEach(el=> el.addEventListener('click', ()=>{
+      state.activePartyId = el.dataset.openPartyPage; state.partySubTab='containers'; state.openContainer=null; state.openHisaab=null; render();
+    }));
+    app.querySelectorAll('[data-back-to-parties]').forEach(el=> el.addEventListener('click', ()=>{
+      state.activePartyId = null; render();
+    }));
+    app.querySelectorAll('[data-party-subtab]').forEach(el=> el.addEventListener('click', ()=>{
+      state.partySubTab = el.dataset.partySubtab; state.openContainer=null; state.openHisaab=null; render();
+    }));
+    app.querySelectorAll('[data-party-status-filter]').forEach(el=> el.addEventListener('click', ()=>{
+      const st = el.dataset.partyStatusFilter;
+      const i = state.partyContainerFilter.indexOf(st);
+      if(i>=0) state.partyContainerFilter.splice(i,1); else state.partyContainerFilter.push(st);
+      render();
+    }));
+    app.querySelectorAll('[data-all-status-filter]').forEach(el=> el.addEventListener('click', ()=>{
+      const st = el.dataset.allStatusFilter;
+      const i = state.allContractsFilter.indexOf(st);
+      if(i>=0) state.allContractsFilter.splice(i,1); else state.allContractsFilter.push(st);
+      render();
     }));
     app.querySelectorAll('[data-goto-tab]').forEach(el=> el.addEventListener('click', ()=>{
       presetContainer = el.dataset.presetContainer || null;
       state.tab = el.dataset.gotoTab;
-      state.openContainer=null; state.openHisaab=null; state.openSupplier=null;
+      state.openContainer=null; state.openHisaab=null;
       render();
       if(presetContainer){
         const sel = document.getElementById('h-container');
         if(sel){ sel.value = presetContainer; sel.dispatchEvent(new Event('change')); }
       }
+    }));
+    app.querySelectorAll('[data-edit-container]').forEach(el=> el.addEventListener('click', ()=>{
+      state.editingContainerId = el.dataset.editContainer; state.openContainer=null; state.tab='containers'; render();
+    }));
+    app.querySelectorAll('[data-toggle-duty]').forEach(el=> el.addEventListener('change', (e)=>{
+      e.stopPropagation(); toggleContainerFlag(el.dataset.toggleDuty, 'dutyPaid');
+    }));
+    app.querySelectorAll('[data-toggle-shipping]').forEach(el=> el.addEventListener('change', (e)=>{
+      e.stopPropagation(); toggleContainerFlag(el.dataset.toggleShipping, 'shippingPaid');
     }));
 
     app.querySelectorAll('[data-delete-container]').forEach(el=> el.addEventListener('click', async (e)=>{
@@ -625,14 +756,39 @@
     }));
 
     const cf = document.getElementById('container-form');
-    if(cf) cf.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const fd = new FormData(cf);
-      const data = { id: uid(), seq: nextContainerSeq(), supplierId: fd.get('supplierId')||'', date: fd.get('date')||today(), status: fd.get('status')||'Booked', material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0, price: Number(fd.get('price'))||0, notes: (fd.get('notes')||'').trim(), hisaabSeq: null };
-      const btn = cf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
-      try{ await saveContainer(data); render(); }
-      catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save container'; alert('Could not save — try again.'); }
-    });
+    if(cf){
+      const cancelBtn = document.getElementById('cancel-edit-container');
+      if(cancelBtn) cancelBtn.addEventListener('click', ()=>{ state.editingContainerId=null; render(); });
+      cf.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(cf);
+        const editingId = state.editingContainerId;
+        const btn = cf.querySelector('button.primary'); btn.disabled = true; btn.textContent='Saving…';
+        let data;
+        if(editingId){
+          const existing = state.containers.find(c=>c.id===editingId);
+          data = Object.assign({}, existing, {
+            supplierId: fd.get('supplierId')||'', date: fd.get('date')||today(),
+            material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0,
+            price: Number(fd.get('price'))||0, contNo: (fd.get('contNo')||'').trim(),
+            shippingLine: (fd.get('shippingLine')||'').trim(), weight: Number(fd.get('weight'))||0,
+            notes: (fd.get('notes')||'').trim()
+          });
+        } else {
+          const seq = nextContainerSeq();
+          const date = fd.get('date')||today();
+          data = {
+            id: uid(), seq, orderNo: generateOrderNo(seq, date), supplierId: fd.get('supplierId')||'',
+            date, material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0,
+            price: Number(fd.get('price'))||0, contNo: (fd.get('contNo')||'').trim(),
+            shippingLine: (fd.get('shippingLine')||'').trim(), weight: Number(fd.get('weight'))||0,
+            notes: (fd.get('notes')||'').trim(), dutyPaid:false, shippingPaid:false, hisaabSeq:null
+          };
+        }
+        try{ await saveContainer(data); state.editingContainerId=null; render(); }
+        catch(err){ console.error(err); btn.disabled=false; btn.textContent=editingId?'Update container':'Save container'; alert('Could not save — try again.'); }
+      });
+    }
 
     const hf = document.getElementById('hisaab-form');
     if(hf){
@@ -659,15 +815,22 @@
     }
 
     const pf = document.getElementById('payment-form');
-    if(pf) pf.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const fd = new FormData(pf);
-      const data = { id: uid(), partyId: fd.get('partyId'), amount: Number(fd.get('amount'))||0, date: fd.get('date')||today(), note: (fd.get('note')||'').trim() };
-      if(!data.partyId){ alert('Please select a party.'); return; }
-      const btn = pf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
-      try{ await savePayment(data); render(); }
-      catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save payment'; alert('Could not save — try again.'); }
-    });
+    if(pf){
+      const payContainerSel = pf.querySelector('#pay-container');
+      payContainerSel.addEventListener('change', ()=>{
+        const c = state.containers.find(x=>x.id===payContainerSel.value);
+        if(c) pf.querySelector('#pay-party').value = c.supplierId || '';
+      });
+      pf.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const fd = new FormData(pf);
+        const data = { id: uid(), containerId: fd.get('containerId')||null, partyId: fd.get('partyId'), amount: Number(fd.get('amount'))||0, date: fd.get('date')||today(), note: (fd.get('note')||'').trim() };
+        if(!data.partyId){ alert('Please select a party.'); return; }
+        const btn = pf.querySelector('button'); btn.disabled = true; btn.textContent='Saving…';
+        try{ await savePayment(data); render(); }
+        catch(err){ console.error(err); btn.disabled=false; btn.textContent='Save payment'; alert('Could not save — try again.'); }
+      });
+    }
 
     const clf = document.getElementById('claim-form');
     if(clf){
