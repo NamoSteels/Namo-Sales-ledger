@@ -135,6 +135,22 @@
   .ledger-line .l-amt{font-variant-numeric:tabular-nums; text-align:right; width:80px;}
   .quick-actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
   .loading{color:var(--muted); padding:20px 2px; font-size:13px;}
+  .page-title{margin-bottom:16px;}
+  .page-title h2{font-family:var(--font-head); font-size:19px; font-weight:600; color:var(--text);}
+  .page-title p{color:var(--muted); font-size:12.5px; margin-top:2px;}
+  .group-title{font-family:var(--font-head); font-size:12.5px; font-weight:600; color:var(--accent-dim); border-bottom:1px solid var(--line); padding-bottom:4px; margin:14px 0 10px;}
+  .list-head{font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text); margin:4px 0 8px;}
+  .count{display:inline-block; min-width:18px; text-align:center; font-size:11px; font-weight:500; color:var(--muted); background:var(--surface-2); border:1px solid var(--line); border-radius:9px; padding:0 6px; margin-left:4px;}
+  details.arrived-group{margin-top:18px; border:1px solid var(--line); background:var(--surface);}
+  details.arrived-group > summary{cursor:pointer; padding:10px 12px; font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--accent-dim); list-style:none;}
+  details.arrived-group > summary::-webkit-details-marker{display:none;}
+  details.arrived-group > summary::before{content:'▸'; display:inline-block; width:14px;}
+  details.arrived-group[open] > summary::before{content:'▾';}
+  details.arrived-group .row-list{border-top:1px solid var(--line); padding:0 10px;}
+  .row-item .name .seq{color:var(--text); font-weight:700; font-size:13.5px;}
+  .ctag{color:var(--muted); font-size:12px;}
+  .pay-hint{font-size:12px; color:var(--muted); margin:-2px 0 10px;}
+  .link-btn{background:none; border:none; color:var(--accent); text-decoration:underline; cursor:pointer; font-size:12px; padding:0 0 0 4px; font-family:var(--font-body);}
   .inline-check{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text);}
   .inline-check input{accent-color:var(--accent);}
 </style>
@@ -151,7 +167,7 @@
     tab: 'containers', openContainer: null, openHisaab: null,
     editingContainerId: null,
     activePartyId: null, partySubTab: 'containers',
-    allContractsFilter: [], partyContainerFilter: [],
+    allContractsFilter: [], partyContainerFilter: [], arrivedOpen: {},
     loaded:false, loadError:null, needsAuth:false, authError:null
   };
 
@@ -226,18 +242,55 @@
   }
 
   // ---- Container status: fully automatic, derived from the data itself ----
-  function containerHisaab(c){ return state.hisaabs.find(h=>h.containerId===c.id) || null; }
-  function containerPaid(c){ return state.payments.filter(p=>p.containerId===c.id).reduce((s,p)=> s+(Number(p.amount)||0), 0); }
+  function hisaabsForContainer(c){ return state.hisaabs.filter(h=>h.containerId===c.id); }
+  function containerHisaab(c){ return hisaabsForContainer(c)[0] || null; }
+  function containerNet(c){ return hisaabsForContainer(c).reduce((t,h)=> t+(Number(h.netPayable)||0), 0); }
+  function containerWeightOf(c){
+    if(Number(c.weight)) return Number(c.weight);
+    return hisaabsForContainer(c).reduce((t,h)=> t+(Number(h.weight)||0), 0);
+  }
+  // Payments tied to a container count against it directly. Payments that are
+  // not tied to any container (general payments) are applied to that supplier's
+  // oldest unpaid containers first, so statuses stay correct either way.
+  let paidCache = null;
+  function getPaidMap(){
+    if(paidCache) return paidCache;
+    const paid = {};
+    state.containers.forEach(c=>{ paid[c.id] = 0; });
+    const pool = {};
+    state.payments.forEach(p=>{
+      const amt = Number(p.amount)||0;
+      if(p.containerId && paid[p.containerId]!==undefined) paid[p.containerId] += amt;
+      else pool[p.partyId] = (pool[p.partyId]||0) + amt;
+    });
+    Object.keys(pool).forEach(pid=>{
+      let left = pool[pid];
+      state.containers
+        .filter(c=> c.supplierId===pid && hisaabsForContainer(c).length)
+        .sort((x,y)=>{
+          const sx = Math.min(...hisaabsForContainer(x).map(h=>Number(h.seq)||0));
+          const sy = Math.min(...hisaabsForContainer(y).map(h=>Number(h.seq)||0));
+          return sx-sy;
+        })
+        .forEach(c=>{
+          if(left<=0) return;
+          const need = Math.max(0, containerNet(c) - paid[c.id]);
+          const take = Math.min(need, left);
+          paid[c.id] += take; left -= take;
+        });
+    });
+    paidCache = paid;
+    return paid;
+  }
+  function containerPaid(c){ return getPaidMap()[c.id] || 0; }
   function containerBalance(c){
-    const h = containerHisaab(c);
-    if(!h) return null;
-    return (Number(h.netPayable)||0) - containerPaid(c);
+    if(!hisaabsForContainer(c).length) return null;
+    return containerNet(c) - containerPaid(c);
   }
   function computeContainerStatus(c){
-    const h = containerHisaab(c);
-    if(h){
+    if(hisaabsForContainer(c).length){
       const bal = containerBalance(c);
-      return (bal!==null && bal<=0.01) ? 'Arrived' : 'Arrived — Payment Pending';
+      return (bal!==null && bal<=1) ? 'Arrived' : 'Arrived — Payment Pending';
     }
     if(c.contNo || c.weight) return 'Loaded';
     return 'Booked';
@@ -328,6 +381,7 @@
       });
       return;
     }
+    paidCache = null;
     const parts = [];
     parts.push('<header class="top"><h1>Namo Steels — Purchase Ledger</h1><p>Containers, hisaab accounts &amp; supplier balances</p></header>');
     if(state.loadError){
@@ -335,7 +389,7 @@
     }
     parts.push('<div style="display:flex;gap:8px;margin-bottom:16px;"><button class="ghost" id="refresh-btn">Refresh</button></div>');
     parts.push('<nav class="tabs">');
-    [['containers','Containers'],['hisaab','Hisaab'],['parties','Parties'],['allcontracts','All Open Contracts']].forEach(([k,label])=>{
+    [['containers','Containers'],['hisaab','Hisaab & Payments'],['parties','Parties'],['allcontracts','All Contracts']].forEach(([k,label])=>{
       parts.push(`<button data-tab="${k}" class="${state.tab===k?'active':''}">${label}</button>`);
     });
     parts.push('</nav>');
@@ -353,23 +407,56 @@
     return state.suppliers.slice().sort((a,b)=>a.name.localeCompare(b.name))
       .map(s=>`<option value="${s.id}" ${s.id===selectedId?'selected':''}>${escapeHtml(s.name)}</option>`).join('');
   }
+  function containerLabel(c){
+    const sup = state.suppliers.find(x=>x.id===c.supplierId);
+    const w = containerWeightOf(c);
+    const bits = [c.orderNo||('#'+c.seq)];
+    if(c.material) bits.push(c.material);
+    if(w) bits.push(numW(w)+' wt');
+    if(c.contNo) bits.push('Cont. '+c.contNo);
+    if(sup) bits.push(sup.name);
+    return bits.join(' · ');
+  }
   function containerOptionsFor(){
-    return state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0))
-      .map(c=>{ const s=state.suppliers.find(x=>x.id===c.supplierId); return `<option value="${c.id}" data-supplier="${c.supplierId}">${c.orderNo||('#'+c.seq)} — ${escapeHtml(c.material||'')} — ${s?escapeHtml(s.name):''}</option>`; }).join('');
+    const sorted = state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
+    const opt = c=> `<option value="${c.id}" data-supplier="${c.supplierId}">${escapeHtml(containerLabel(c))}</option>`;
+    const open = sorted.filter(c=>computeContainerStatus(c)!=='Arrived');
+    const arrived = sorted.filter(c=>computeContainerStatus(c)==='Arrived');
+    let h = '';
+    if(open.length) h += '<optgroup label="Open contracts">' + open.map(opt).join('') + '</optgroup>';
+    if(arrived.length) h += '<optgroup label="Arrived containers (settled)">' + arrived.map(opt).join('') + '</optgroup>';
+    return h;
+  }
+  // Compact identity tag used wherever a container is mentioned:
+  // contract no., weight and container no.
+  function containerTag(c){
+    if(!c) return '';
+    const w = containerWeightOf(c);
+    let h = `<span class="seq">${escapeHtml(c.orderNo||('#'+c.seq))}</span>`;
+    const bits = [];
+    if(w) bits.push('Wt '+numW(w));
+    if(c.contNo) bits.push('Cont. '+escapeHtml(c.contNo));
+    if(bits.length) h += ` <span class="ctag">${bits.join(' · ')}</span>`;
+    return h;
+  }
+  function pageHeading(title, sub){
+    return `<div class="page-title"><h2>${title}</h2>${sub?`<p>${sub}</p>`:''}</div>`;
   }
 
   // ===================== Shared: container row + detail + grouped list =====================
   function renderContainerRow(c, showParty){
     const s = state.suppliers.find(x=>x.id===c.supplierId);
     const status = computeContainerStatus(c);
+    const w = containerWeightOf(c);
     const hisaabTag = c.hisaabSeq ? `<span class="hisaab-tag">Hisaab #${c.hisaabSeq}</span>` : `<span class="hisaab-tag none">No hisaab yet</span>`;
-    const subBits = [escapeHtml(c.material||'')];
+    const subBits = [];
+    subBits.push('Weight: '+(w?numW(w):'—'));
+    subBits.push('Cont. no.: '+(c.contNo?escapeHtml(c.contNo):'—'));
+    if(c.material) subBits.push(escapeHtml(c.material));
     if(c.numContainers) subBits.push(c.numContainers+' cont');
-    if(c.weight) subBits.push(numW(c.weight));
-    if(c.contNo) subBits.push(escapeHtml(c.contNo));
     if(c.shippingLine) subBits.push(escapeHtml(c.shippingLine));
     subBits.push(fmtDate(c.date));
-    return `<div class="row-item" data-open-container="${c.id}"><div><div class="name"><span class="seq">${escapeHtml(c.orderNo||('#'+c.seq))}</span> ${showParty && s?escapeHtml(s.name)+' ':''}${hisaabTag}</div><div class="sub">${subBits.filter(Boolean).join(' · ')}</div></div><div><span class="${statusBadgeClass(status)}">${status}</span></div></div>`;
+    return `<div class="row-item" data-open-container="${c.id}"><div><div class="name"><span class="seq">${escapeHtml(c.orderNo||('#'+c.seq))}</span> ${showParty && s?escapeHtml(s.name)+' ':''}${hisaabTag}</div><div class="sub">${subBits.join(' · ')}</div></div><div><span class="${statusBadgeClass(status)}">${status}</span></div></div>`;
   }
 
   function renderContainerDetail(c, s){
@@ -380,13 +467,16 @@
     html += `<div class="ledger-line"><div class="l-desc">Date</div><div class="l-amt" style="width:auto;">${fmtDate(c.date)}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Material</div><div class="l-amt" style="width:auto;">${escapeHtml(c.material||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">No. of containers</div><div class="l-amt" style="width:auto;">${c.numContainers||0}</div></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">Weight</div><div class="l-amt" style="width:auto;">${c.weight?numW(c.weight):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Weight</div><div class="l-amt" style="width:auto;">${containerWeightOf(c)?numW(containerWeightOf(c)):'—'}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Container no.</div><div class="l-amt" style="width:auto;">${escapeHtml(c.contNo||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Shipping line</div><div class="l-amt" style="width:auto;">${escapeHtml(c.shippingLine||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Price</div><div class="l-amt" style="width:auto;">${c.price?escapeHtml(String(c.price))+(c.priceCurrency?' '+escapeHtml(c.priceCurrency):''):'—'}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Notes</div><div class="l-amt" style="width:auto;">${escapeHtml(c.notes||'—')}</div></div>`;
     if(c.hisaabSeq){
       html += `<div class="ledger-line"><div class="l-desc">Linked hisaab</div><div class="l-amt" style="width:auto;color:var(--rust);">#${c.hisaabSeq}</div></div>`;
+      html += `<div class="ledger-line"><div class="l-desc">Net payable</div><div class="l-amt" style="width:auto;">${money(containerNet(c))}</div></div>`;
+      html += `<div class="ledger-line"><div class="l-desc">Paid so far</div><div class="l-amt" style="width:auto;">${money(containerPaid(c))}</div></div>`;
+      html += `<div class="ledger-line"><div class="l-desc"><b>Balance</b></div><div class="l-amt" style="width:auto;"><b>${money(containerBalance(c))}</b></div></div>`;
     }
     html += '<div class="check-row" style="margin-top:10px;">';
     html += `<label class="inline-check"><input type="checkbox" data-toggle-duty="${c.id}" ${c.dutyPaid?'checked':''}> Duty paid</label>`;
@@ -406,25 +496,37 @@
     ).join('') + '</div>';
   }
 
-  function renderContainerGroupedList(containers, filterStatuses, showParty){
+  // Open contracts are listed first (Payment Pending, Loaded, Booked); fully
+  // settled "Arrived" containers sit in their own drop-down underneath.
+  function renderContainerGroupedList(containers, filterStatuses, showParty, key){
     let filtered = containers;
     if(filterStatuses && filterStatuses.length){
       filtered = filtered.filter(c=> filterStatuses.includes(computeContainerStatus(c)));
     }
     if(filtered.length===0) return '<div class="empty">No containers match.</div>';
-    const sorted = filtered.slice().sort((a,b)=>{
+    const bySeq = (a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0);
+    const open = filtered.filter(c=>computeContainerStatus(c)!=='Arrived').sort((a,b)=>{
       const oa = STATUS_ORDER.indexOf(computeContainerStatus(a));
       const ob = STATUS_ORDER.indexOf(computeContainerStatus(b));
-      if(oa!==ob) return oa-ob;
-      return (Number(b.seq)||0)-(Number(a.seq)||0);
+      return oa!==ob ? oa-ob : bySeq(a,b);
     });
-    let html = '<div class="row-list">';
-    sorted.forEach(c=>{
+    const arrived = filtered.filter(c=>computeContainerStatus(c)==='Arrived').sort(bySeq);
+    const item = c=>{
       const s = state.suppliers.find(x=>x.id===c.supplierId);
-      html += renderContainerRow(c, showParty);
-      if(state.openContainer===c.id) html += renderContainerDetail(c, s);
-    });
-    html += '</div>';
+      return renderContainerRow(c, showParty) + (state.openContainer===c.id ? renderContainerDetail(c, s) : '');
+    };
+    let html = '';
+    if(open.length){
+      html += `<div class="list-head">Open contracts <span class="count">${open.length}</span></div>`;
+      html += '<div class="row-list">' + open.map(item).join('') + '</div>';
+    } else if(!arrived.length){
+      html += '<div class="empty">No open contracts.</div>';
+    }
+    if(arrived.length){
+      const isOpen = state.arrivedOpen[key] || (filterStatuses||[]).includes('Arrived') || arrived.some(c=>c.id===state.openContainer);
+      html += `<details class="arrived-group" data-arrived-key="${key}" ${isOpen?'open':''}><summary>Arrived containers <span class="count">${arrived.length}</span></summary>`;
+      html += '<div class="row-list">' + arrived.map(item).join('') + '</div></details>';
+    }
     return html;
   }
 
@@ -433,9 +535,17 @@
 
   function renderContainersTab(){
     const editing = state.editingContainerId ? state.containers.find(c=>c.id===state.editingContainerId) : null;
-    let html = '<div class="col-grid"><div class="col-main">';
+    let html = pageHeading('Containers', 'Record each order and track it from booking to arrival and payment.');
+    const cnt = st=> state.containers.filter(c=>computeContainerStatus(c)===st).length;
+    html += '<div class="stat-row" style="max-width:none;">'
+      + `<div class="stat"><div class="label">Booked</div><div class="value">${cnt('Booked')}</div></div>`
+      + `<div class="stat"><div class="label">Loaded</div><div class="value">${cnt('Loaded')}</div></div>`
+      + `<div class="stat"><div class="label">Payment pending</div><div class="value">${cnt('Arrived — Payment Pending')}</div></div>`
+      + `<div class="stat"><div class="label">Arrived</div><div class="value">${cnt('Arrived')}</div></div>`
+      + '</div>';
+    html += '<div class="col-grid"><div class="col-main">';
     html += '<form class="panel" id="container-form">';
-    html += '<div class="form-sub-title">'+(editing?'Edit container':'New container / order')+'</div>';
+    html += '<div class="form-sub-title">'+(editing?'Edit container':'Add new container')+'</div>';
     html += '<div class="field"><label>Supplier</label><select name="supplierId">' + (state.suppliers.length? supplierOptions(editing?editing.supplierId:null) : '<option value="">Add a supplier first (Parties tab)</option>') + '</select></div>';
     html += '<div class="field-row"><div class="field"><label>Date</label><input name="date" type="date" value="'+(editing?editing.date:today())+'"></div><div class="field"><label>No. of containers</label><input name="numContainers" type="number" step="1" min="1" placeholder="1" value="'+(editing&&editing.numContainers?editing.numContainers:'')+'"></div></div>';
     html += '<div class="field-row"><div class="field"><label>Material</label><input name="material" list="material-list" placeholder="e.g. ALTS, AL SELF" value="'+escapeHtml(editing?editing.material||'':'')+'"></div></div>';
@@ -450,18 +560,11 @@
     html += '</div></form>';
     html += '</div><div class="col-side">';
 
-    html += '<div class="section-title">Containers</div>';
-    const containers = state.containers.slice().sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
-    if(containers.length===0){
-      html += '<div class="empty">No containers recorded yet.</div>';
+    html += '<div class="section-title">Container list</div>';
+    if(state.containers.length===0){
+      html += '<div class="empty">No containers recorded yet. Add the first one using the form.</div>';
     } else {
-      html += '<div class="row-list">';
-      containers.forEach(c=>{
-        const s = state.suppliers.find(x=>x.id===c.supplierId);
-        html += renderContainerRow(c, true);
-        if(state.openContainer===c.id) html += renderContainerDetail(c, s);
-      });
-      html += '</div>';
+      html += renderContainerGroupedList(state.containers, [], true, 'tab-containers');
     }
     html += '</div></div>';
     return html;
@@ -469,11 +572,14 @@
 
   // ===================== TAB: HISAAB =====================
   function renderHisaabTab(){
-    let html = '<div class="col-grid"><div class="col-main">';
+    let html = pageHeading('Hisaab &amp; Payments', 'Settle each container, record payments to suppliers and log claims.');
+    html += '<div class="col-grid"><div class="col-main">';
     html += '<form class="panel" id="hisaab-form">';
-    html += '<div class="form-sub-title">New hisaab / account</div>';
+    html += '<div class="form-sub-title">Add hisaab</div>';
+    html += '<div class="group-title">Container &amp; party</div>';
     html += '<div class="field"><label>Container (optional)</label><select name="containerId" id="h-container"><option value="">— not linked to a container —</option>' + containerOptionsFor() + '</select></div>';
     html += '<div class="field-row3"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Weight (total)</label><input name="weight" id="h-weight" type="number" step="any"></div><div class="field"><label>Party</label><select name="partyId" id="h-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div></div>';
+    html += '<div class="group-title">Material &amp; rate</div>';
     html += '<label class="inline-check" style="margin-bottom:10px;"><input type="checkbox" name="isCombo" id="h-combo"> Combo container (up to 5 materials, each with its own weight &amp; rate)</label>';
     html += '<div id="h-single-row" class="field-row"><div class="field"><label>Material</label><input name="material" id="h-material"></div><div class="field"><label>Rate</label><input name="rate" id="h-rate" type="number" step="any"></div></div>';
     html += '<div id="h-combo-block" style="display:none;margin-bottom:10px;">';
@@ -482,9 +588,11 @@
     }
     html += '</div>';
     html += '<div class="field"><label>Currency</label><select name="rateCurrency">' + ['USD','INR','EUR','GBP'].map(c=>`<option value="${c}">${c}</option>`).join('') + '</select></div>';
-    html += '<div class="field"><label>Amount</label><input type="text" id="h-amount-display" disabled></div>';
+    html += '<div class="field"><label>Amount (weight × rate)</label><input type="text" id="h-amount-display" disabled></div>';
+    html += '<div class="group-title">Advance &amp; finance</div>';
     html += '<div class="field-row"><div class="field"><label>Advance</label><input name="advance" id="h-advance" type="number" step="any" placeholder="0"></div><div class="field"><label>Finance cost</label><input name="financeCost" id="h-finance" type="number" step="any" placeholder="0"></div></div>';
     html += '<div class="field"><label>Total (material − advance + finance cost)</label><input type="text" id="h-total-display" disabled></div>';
+    html += '<div class="group-title">INR settlement</div>';
     html += '<div class="field-row"><div class="field"><label>INR rate</label><input name="inrRate" id="h-inrrate" type="number" step="any" placeholder="e.g. 83.5"></div><div class="field"><label>INR amount (total × INR rate)</label><input type="text" id="h-inramount-display" disabled></div></div>';
     html += '<div class="field"><label>Bank charges</label><input name="bankCharges" id="h-bank" type="number" step="any" placeholder="0"></div>';
     html += '<div class="calc-block"><div class="calc-line net"><span>Net payable</span><span id="h-net-display">₹0</span></div></div>';
@@ -492,16 +600,17 @@
     html += '</form>';
 
     html += '<form class="panel" id="payment-form">';
-    html += '<div class="form-sub-title">Record a payment</div>';
-    html += '<div class="field"><label>Container (optional — marks that container as paid)</label><select name="containerId" id="pay-container"><option value="">— general payment, not tied to a container —</option>' + containerOptionsFor() + '</select></div>';
+    html += '<div class="form-sub-title">Record payment</div>';
+    html += '<div class="field"><label>Container (optional — pick one to count this payment against it)</label><select name="containerId" id="pay-container"><option value="">— general payment, not tied to a container —</option>' + containerOptionsFor() + '</select></div>';
     html += '<div class="field"><label>Party</label><select name="partyId" id="pay-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div>';
-    html += '<div class="field-row"><div class="field"><label>Amount</label><input name="amount" type="number" step="any" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
+    html += '<div id="pay-hint" class="pay-hint"></div>';
+    html += '<div class="field-row"><div class="field"><label>Amount</label><input name="amount" id="pay-amount" type="number" step="any" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
     html += '<div class="field"><label>Note</label><input name="note"></div>';
     html += '<button class="primary" type="submit" '+(state.suppliers.length?'':'disabled')+'>Save payment</button>';
     html += '</form>';
 
     html += '<form class="panel" id="claim-form">';
-    html += '<div class="form-sub-title">Record a claim</div>';
+    html += '<div class="form-sub-title">Record claim</div>';
     html += '<div class="field"><label>Container no.</label><select name="containerId" id="cl-container"><option value="">— no specific container —</option>' + containerOptionsFor() + '</select></div>';
     html += '<div class="field"><label>Party</label><select name="partyId" id="cl-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div>';
     html += '<div class="field-row"><div class="field"><label>Claim amount</label><input name="amount" type="number" step="any" required></div><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div></div>';
@@ -518,13 +627,14 @@
       html += '<div class="row-list">';
       hisaabs.forEach(h=>{
         const s = state.suppliers.find(x=>x.id===h.partyId);
-        html += `<div class="row-item" data-open-hisaab="${h.id}"><div><div class="name"><span class="seq">#${h.seq}</span> ${s?escapeHtml(s.name):'—'}</div><div class="sub">${escapeHtml(h.material||'')} · ${fmtDate(h.date)}</div></div><div class="amt pos">${money(h.netPayable)}</div></div>`;
+        const hc = state.containers.find(x=>x.id===h.containerId);
+        html += `<div class="row-item" data-open-hisaab="${h.id}"><div><div class="name"><span class="seq">Hisaab #${h.seq}</span> ${s?escapeHtml(s.name):'—'}</div><div class="sub">${hc?containerTag(hc)+' · ':''}${escapeHtml(h.material||'')} · Wt ${numW(h.weight)} · ${fmtDate(h.date)}</div></div><div class="amt pos">${money(h.netPayable)}</div></div>`;
         if(state.openHisaab===h.id) html += renderHisaabVoucher(h, s);
       });
       html += '</div>';
     }
 
-    html += '<div class="section-title">Payments</div>';
+    html += '<div class="section-title">Payments made</div>';
     const payments = state.payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     if(payments.length===0){
       html += '<div class="empty">No payments recorded yet.</div>';
@@ -533,12 +643,12 @@
       payments.forEach(p=>{
         const s = state.suppliers.find(x=>x.id===p.partyId);
         const c = state.containers.find(x=>x.id===p.containerId);
-        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}${c?` <span class="seq">${escapeHtml(c.orderNo||('#'+c.seq))}</span>`:''}</div><div class="sub">${p.note?escapeHtml(p.note)+' · ':''}${fmtDate(p.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(p.amount)}</div><button class="line-del" data-delete-payment="${p.id}" title="Delete">✕</button></div></div>`;
+        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}</div><div class="sub">${c?containerTag(c):'General payment'} · ${p.note?escapeHtml(p.note)+' · ':''}${fmtDate(p.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(p.amount)}</div><button class="line-del" data-delete-payment="${p.id}" title="Delete">✕</button></div></div>`;
       });
       html += '</div>';
     }
 
-    html += '<div class="section-title">Claims</div>';
+    html += '<div class="section-title">Claims raised</div>';
     const claims = state.claims.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
     if(claims.length===0){
       html += '<div class="empty">No claims recorded yet.</div>';
@@ -547,7 +657,7 @@
       claims.forEach(cl=>{
         const s = state.suppliers.find(x=>x.id===cl.partyId);
         const c = state.containers.find(x=>x.id===cl.containerId);
-        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}${c?` <span class="seq">${escapeHtml(c.orderNo||('#'+c.seq))}</span>`:''}</div><div class="sub">${cl.note?escapeHtml(cl.note)+' · ':''}${fmtDate(cl.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(cl.amount)}</div><button class="line-del" data-delete-claim="${cl.id}" title="Delete">✕</button></div></div>`;
+        html += `<div class="row-item" style="cursor:default;"><div><div class="name">${s?escapeHtml(s.name):'—'}</div><div class="sub">${c?containerTag(c):'General claim'} · ${cl.note?escapeHtml(cl.note)+' · ':''}${fmtDate(cl.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(cl.amount)}</div><button class="line-del" data-delete-claim="${cl.id}" title="Delete">✕</button></div></div>`;
       });
       html += '</div>';
     }
@@ -559,6 +669,11 @@
     let html = '<div class="voucher">';
     html += `<div class="voucher-head"><span>Hisaab #${h.seq}</span><span>${fmtDate(h.date)}</span></div>`;
     html += `<div class="voucher-row"><span class="vr-label">Party</span><span class="vr-val">${s?escapeHtml(s.name):'—'}</span></div>`;
+    const vc = state.containers.find(x=>x.id===h.containerId);
+    if(vc){
+      html += `<div class="voucher-row"><span class="vr-label">Contract no.</span><span class="vr-val">${escapeHtml(vc.orderNo||('#'+vc.seq))}</span></div>`;
+      html += `<div class="voucher-row"><span class="vr-label">Container no.</span><span class="vr-val">${escapeHtml(vc.contNo||'—')}</span></div>`;
+    }
     if(h.isCombo && h.lines && h.lines.length){
       h.lines.forEach((l,i)=>{
         html += `<div class="voucher-row"><span class="vr-label">${escapeHtml(l.material||('Material '+(i+1)))}</span><span class="vr-val">${numW(l.weight)} × ${num(l.rate)} = ${num(l.amount)} ${h.rateCurrency||'USD'}</span></div>`;
@@ -597,16 +712,18 @@
     if(state.activePartyId){
       return renderPartyDedicatedPage();
     }
-    let html = '<div class="stat-row"><div class="stat"><div class="label">Total payable</div><div class="value">'+money(totalPayable())+'</div></div></div>';
+    let html = pageHeading('Parties', 'Suppliers and what is currently owed to each.');
+    html += '<div class="stat-row"><div class="stat"><div class="label">Total payable</div><div class="value">'+money(totalPayable())+'</div></div></div>';
     html += '<div class="col-grid"><div class="col-main">';
 
     html += '<form class="panel" id="supplier-form">';
+    html += '<div class="form-sub-title">Add supplier</div>';
     html += '<div class="field-row"><div class="field"><label>Supplier name</label><input name="name" required></div><div class="field"><label>Phone</label><input name="phone"></div></div>';
     html += '<button class="primary" type="submit">Add supplier</button>';
     html += '</form>';
     html += '</div><div class="col-side">';
 
-    html += '<div class="section-title">Parties</div>';
+    html += '<div class="section-title">Supplier list</div>';
     if(state.suppliers.length===0){
       html += '<div class="empty">No suppliers added yet.</div>';
     } else {
@@ -644,7 +761,8 @@
     if(state.partySubTab==='containers'){
       const myContainers = state.containers.filter(c=>c.supplierId===s.id);
       html += renderStatusChips(state.partyContainerFilter, 'party-status-filter');
-      html += renderContainerGroupedList(myContainers, state.partyContainerFilter, false);
+      html += '<div class="section-title">Containers</div>';
+      html += renderContainerGroupedList(myContainers, state.partyContainerFilter, false, 'party-'+s.id);
     }
     if(state.partySubTab==='hisaab'){
       const myHisaabs = state.hisaabs.filter(h=>h.partyId===s.id).sort((a,b)=>(Number(b.seq)||0)-(Number(a.seq)||0));
@@ -653,7 +771,8 @@
       } else {
         html += '<div class="row-list">';
         myHisaabs.forEach(h=>{
-          html += `<div class="row-item" data-open-hisaab="${h.id}"><div><div class="name"><span class="seq">#${h.seq}</span> ${escapeHtml(h.material||'')}</div><div class="sub">${fmtDate(h.date)}</div></div><div class="amt pos">${money(h.netPayable)}</div></div>`;
+          const hc = state.containers.find(x=>x.id===h.containerId);
+          html += `<div class="row-item" data-open-hisaab="${h.id}"><div><div class="name"><span class="seq">Hisaab #${h.seq}</span> ${escapeHtml(h.material||'')}</div><div class="sub">${hc?containerTag(hc)+' · ':''}Wt ${numW(h.weight)} · ${fmtDate(h.date)}</div></div><div class="amt pos">${money(h.netPayable)}</div></div>`;
           if(state.openHisaab===h.id) html += renderHisaabVoucher(h, s);
         });
         html += '</div>';
@@ -667,7 +786,7 @@
         html += '<div class="row-list">';
         myClaims.forEach(cl=>{
           const c = state.containers.find(x=>x.id===cl.containerId);
-          html += `<div class="row-item" style="cursor:default;"><div><div class="name">${c?escapeHtml(c.orderNo||('#'+c.seq)):'General claim'}</div><div class="sub">${cl.note?escapeHtml(cl.note)+' · ':''}${fmtDate(cl.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(cl.amount)}</div><button class="line-del" data-delete-claim="${cl.id}" title="Delete">✕</button></div></div>`;
+          html += `<div class="row-item" style="cursor:default;"><div><div class="name">${c?'Claim':'General claim'}</div><div class="sub">${c?containerTag(c)+' · ':''}${cl.note?escapeHtml(cl.note)+' · ':''}${fmtDate(cl.date)}</div></div><div style="display:flex;align-items:center;gap:4px;"><div class="amt neg">-${money(cl.amount)}</div><button class="line-del" data-delete-claim="${cl.id}" title="Delete">✕</button></div></div>`;
         });
         html += '</div>';
       }
@@ -677,8 +796,9 @@
 
   // ===================== TAB: ALL OPEN CONTRACTS =====================
   function renderAllContractsTab(){
-    let html = renderStatusChips(state.allContractsFilter, 'all-status-filter');
-    html += renderContainerGroupedList(state.containers, state.allContractsFilter, true);
+    let html = pageHeading('All Contracts', 'Every contract across all suppliers. Filter by status; settled containers are under Arrived.');
+    html += renderStatusChips(state.allContractsFilter, 'all-status-filter');
+    html += renderContainerGroupedList(state.containers, state.allContractsFilter, true, 'all');
     return html;
   }
 
@@ -746,6 +866,7 @@
     const refreshBtn = document.getElementById('refresh-btn');
     if(refreshBtn) refreshBtn.addEventListener('click', ()=>{ refreshBtn.textContent='Refreshing…'; loadAll(); });
 
+    app.querySelectorAll('details[data-arrived-key]').forEach(d=> d.addEventListener('toggle', ()=>{ state.arrivedOpen[d.dataset.arrivedKey] = d.open; }));
     app.querySelectorAll('[data-tab]').forEach(b=> b.addEventListener('click', ()=> setTab(b.dataset.tab)));
     app.querySelectorAll('[data-open-container]').forEach(el=> el.addEventListener('click', ()=>{
       const id = el.dataset.openContainer; state.openContainer = state.openContainer===id?null:id; render();
@@ -900,7 +1021,21 @@
       const payContainerSel = pf.querySelector('#pay-container');
       payContainerSel.addEventListener('change', ()=>{
         const c = state.containers.find(x=>x.id===payContainerSel.value);
-        if(c) pf.querySelector('#pay-party').value = c.supplierId || '';
+        const hint = pf.querySelector('#pay-hint');
+        hint.innerHTML = '';
+        if(c){
+          pf.querySelector('#pay-party').value = c.supplierId || '';
+          const bal = containerBalance(c);
+          if(bal===null){ hint.textContent = 'No hisaab for this container yet — it will still count once a hisaab is added.'; }
+          else {
+            hint.innerHTML = `Balance on ${escapeHtml(c.orderNo||('#'+c.seq))}: <b>${money(bal)}</b> `;
+            if(bal>0){
+              const b = document.createElement('button'); b.type='button'; b.className='link-btn'; b.textContent='Fill full balance';
+              b.addEventListener('click', ()=>{ pf.querySelector('#pay-amount').value = Math.round(bal*100)/100; });
+              hint.appendChild(b);
+            }
+          }
+        }
       });
       pf.addEventListener('submit', async (e)=>{
         e.preventDefault();
