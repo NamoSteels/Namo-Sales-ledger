@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Namo Steels — Purchase Ledger</title>
-<meta name="theme-color" content="#d7dcc6">
+<meta name="theme-color" content="#143028">
 <meta name="description" content="Purchase ledger for Namo Steels — containers, hisaab accounts and supplier balances">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -15,13 +15,14 @@
 <body>
 <style>
   :root{
-    --desk:#d7dcc6; --bg:#eef0e9; --surface:#e3e7da; --surface-2:#d7dccb; --line:#c0c8b1;
-    --text:#273530; --muted:#69776a;
-    --accent:#3f6b57; --accent-dim:#5c8470;
-    --rust:#a85a2a;
-    --red:#9c4330;
+    --desk:#dfe5e1; --bg:#f6f8f6; --surface:#edf1ee; --surface-2:#e2e9e4; --line:#cbd5ce;
+    --text:#1b2a26; --muted:#5b6d66;
+    --accent:#1f6f55; --accent-dim:#337d65;
+    --ink:#143028; --brass:#c09a45;
+    --rust:#b0522a;
+    --red:#a63a2b;
     --font-head:'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-    --font-body:-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    --font-body:'Avenir Next', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html{background:var(--desk);}
@@ -162,6 +163,9 @@
     .rp-band,.rp-table th,.rp-gold,.rp-logo,.rp-sum tr.rp-total td,.rp-table tbody tr:nth-child(even){-webkit-print-color-adjust:exact; print-color-adjust:exact;}
     .rp-section{break-after:avoid;} .rp-table tr{break-inside:avoid;}
   }
+  .search-box{margin-bottom:12px;}
+  .search-box input{width:100%; max-width:520px; background:var(--surface-2); border:1px solid var(--line); color:var(--text); padding:10px 12px; font-size:14px; font-family:var(--font-body);}
+  .search-box input:focus{outline:1px solid var(--accent);}
   .page-title{margin-bottom:16px;}
   .page-title h2{font-family:var(--font-head); font-size:19px; font-weight:600; color:var(--text);}
   .page-title p{color:var(--muted); font-size:12.5px; margin-top:2px;}
@@ -180,6 +184,77 @@
   .link-btn{background:none; border:none; color:var(--accent); text-decoration:underline; cursor:pointer; font-size:12px; padding:0 0 0 4px; font-family:var(--font-body);}
   .inline-check{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text);}
   .inline-check input{accent-color:var(--accent);}
+
+  /* ===== Laptop / desktop layout: sidebar + roomy content, larger type ===== */
+  .side-foot{display:none;}
+  @media (min-width:860px){
+    html,body{background:var(--bg);}
+    body{font-size:16px; line-height:1.55; padding:0;}
+    #app{max-width:none; padding:0;}
+    .sheet{margin:0; padding:0; border:none; border-radius:0; box-shadow:none; background:var(--bg); min-height:100vh;}
+    .shell{display:grid; grid-template-columns:260px 1fr; min-height:100vh;}
+    .side{background:var(--ink); color:#e6eee9; padding:30px 18px 22px; position:sticky; top:0; height:100vh; display:flex; flex-direction:column;}
+    .side header.top{border-bottom:1px solid rgba(255,255,255,0.14); margin:0 6px 22px; padding-bottom:18px;}
+    .side header.top h1{color:#fff; font-size:25px; letter-spacing:0.2px;}
+    .side header.top p{color:#9fb5ab; font-size:14px; margin-top:4px; font-style:normal;}
+    .side nav.tabs{flex-direction:column; gap:3px; margin:0;}
+    .side nav.tabs button{background:transparent; color:#b4c6bd; border:none; border-left:3px solid transparent; border-radius:0 8px 8px 0; font-family:var(--font-body); font-weight:500; font-size:16px; text-align:left; padding:12px 16px; top:0;}
+    .side nav.tabs button:hover:not(.active){background:rgba(255,255,255,0.07); color:#fff;}
+    .side nav.tabs button.active{background:rgba(255,255,255,0.11); color:#fff; border-left-color:var(--brass); font-weight:600;}
+    .side-foot{display:block; margin-top:auto; padding:0 6px;}
+    .side-foot button{width:100%; background:transparent; color:#b4c6bd; border:1px solid rgba(255,255,255,0.22); border-radius:6px; font-size:14px; padding:10px;}
+    .side-foot button:hover{background:rgba(255,255,255,0.08); color:#fff;}
+    .main{padding:38px 52px 70px; min-width:0;}
+    .main > *{max-width:1400px;}
+
+    .page-title{margin-bottom:22px;}
+    .page-title h2{font-size:32px; letter-spacing:0.1px;}
+    .page-title p{font-size:15.5px; margin-top:4px;}
+    .section-title{font-size:20px; margin:30px 0 14px;}
+    .list-head{font-size:15.5px; margin:2px 0 10px;}
+    .stat-row{gap:16px; margin-bottom:30px; max-width:none;}
+    .stat{padding:18px 20px; border-radius:10px; background:#fff; border:1px solid var(--line); border-top:3px solid var(--accent);}
+    .stat .label{font-size:13.5px;}
+    .stat .value{font-size:30px; margin-top:6px;}
+    .col-grid{grid-template-columns:490px 1fr; gap:44px;}
+    form.panel{padding:22px; border-radius:10px; background:#fff; margin-bottom:26px;}
+    .form-sub-title{font-size:19px; margin-bottom:14px;}
+    .group-title{font-size:14px; margin:20px 0 12px;}
+    form.panel label{font-size:13.5px; margin-bottom:5px;}
+    form.panel input, form.panel select, form.panel textarea{font-size:15.5px; padding:11px 12px; border-radius:6px; background:var(--bg);}
+    form.panel .field{margin-bottom:14px;}
+    .field-row, .field-row3{gap:14px;}
+    button.primary{font-size:15.5px; padding:12px 22px; border-radius:6px;}
+    button.ghost{font-size:14.5px; padding:10px 16px; border-radius:6px;}
+    .inline-check{font-size:14.5px;}
+    .row-list{border-top:1px solid var(--line); background:#fff; border-radius:10px; border:1px solid var(--line);}
+    .row-item{padding:16px 18px;}
+    .row-item .name{font-size:16.5px;}
+    .row-item .sub{font-size:14px; margin-top:3px;}
+    .row-item .amt{font-size:17px;}
+    .row-item .name .seq{font-size:16px;}
+    .badge{font-size:12.5px; padding:4px 10px; border-radius:12px;}
+    .hisaab-tag{font-size:12.5px;}
+    .ctag{font-size:14px;}
+    .detail, .voucher{padding:20px 22px; font-size:15px; margin:0; border-radius:0; border-left:3px solid var(--accent);}
+    .detail-head h3, .voucher-head{font-size:20px;}
+    .ledger-line, .voucher-row{font-size:15px; padding:9px 0;}
+    nav.tabs{margin-bottom:22px;}
+    .main nav.tabs button{font-size:15px; padding:10px 18px;}
+    .chip{font-size:14px; padding:8px 15px; border-radius:18px;}
+    .balance-grid{grid-template-columns:repeat(4,1fr); max-width:none; gap:14px;}
+    .balance-grid .b-item{padding:14px 16px; background:#fff; border-radius:10px;}
+    .balance-grid .b-item .b-label{font-size:13px;}
+    .balance-grid .b-item .b-val{font-size:24px;}
+    details.arrived-group{border-radius:10px; background:#fff;}
+    details.arrived-group > summary{font-size:16px; padding:14px 18px;}
+    .search-box input{font-size:16px; padding:13px 15px; max-width:640px; border-radius:8px; background:#fff;}
+    .empty{font-size:15px;}
+    .pay-hint{font-size:14px;}
+    .calc-line{font-size:14.5px;} .calc-line.net{font-size:17px;}
+  }
+  @media (min-width:1500px){ body{font-size:17px;} .col-grid{grid-template-columns:540px 1fr;} }
+  @media print{ .side{display:none !important;} .shell{display:block !important;} }
 </style>
 
 <div id="app"><div class="loading">Loading ledger…</div></div>
@@ -194,7 +269,7 @@
     tab: 'containers', openContainer: null, openHisaab: null,
     editingContainerId: null,
     activePartyId: null, reportPartyId: null, partySubTab: 'containers',
-    allContractsFilter: [], partyContainerFilter: [], arrivedOpen: {},
+    allContractsFilter: [], partyContainerFilter: [], arrivedOpen: {}, allSearch: '',
     loaded:false, loadError:null, needsAuth:false, authError:null
   };
 
@@ -415,24 +490,23 @@
       app.querySelector('[data-report-print]').addEventListener('click', ()=> window.print());
       return;
     }
-    const parts = [];
-    parts.push('<header class="top"><h1>Namo Steels — Purchase Ledger</h1><p>Containers, hisaab accounts &amp; supplier balances</p></header>');
-    if(state.loadError){
-      parts.push('<div style="background:#f5e2dc;border:1px solid var(--red);color:#7a3222;padding:10px 12px;font-size:12.5px;margin-bottom:16px;">Could not read saved data: '+escapeHtml(state.loadError)+'.</div>');
-    }
-    parts.push('<div style="display:flex;gap:8px;margin-bottom:16px;"><button class="ghost" id="refresh-btn">Refresh</button></div>');
-    parts.push('<nav class="tabs">');
+    const side = [], main = [];
+    side.push('<header class="top"><h1>Namo Steels</h1><p>Purchase Ledger</p></header>');
+    side.push('<nav class="tabs">');
     [['containers','Containers'],['hisaab','Hisaab & Payments'],['parties','Parties'],['allcontracts','All Contracts']].forEach(([k,label])=>{
-      parts.push(`<button data-tab="${k}" class="${state.tab===k?'active':''}">${label}</button>`);
+      side.push(`<button data-tab="${k}" class="${state.tab===k?'active':''}">${label}</button>`);
     });
-    parts.push('</nav>');
+    side.push('</nav>');
+    side.push('<div class="side-foot"><button class="ghost" id="refresh-btn">Refresh data</button></div>');
+    if(state.loadError){
+      main.push('<div style="background:#f5e2dc;border:1px solid var(--red);color:#7a3222;padding:10px 12px;font-size:13px;margin-bottom:16px;">Could not read saved data: '+escapeHtml(state.loadError)+'.</div>');
+    }
+    if(state.tab==='containers') main.push(renderContainersTab());
+    if(state.tab==='hisaab') main.push(renderHisaabTab());
+    if(state.tab==='parties') main.push(renderPartiesTab());
+    if(state.tab==='allcontracts') main.push(renderAllContractsTab());
 
-    if(state.tab==='containers') parts.push(renderContainersTab());
-    if(state.tab==='hisaab') parts.push(renderHisaabTab());
-    if(state.tab==='parties') parts.push(renderPartiesTab());
-    if(state.tab==='allcontracts') parts.push(renderAllContractsTab());
-
-    app.innerHTML = '<div class="sheet">' + parts.join('') + '</div>';
+    app.innerHTML = '<div class="sheet"><div class="shell"><aside class="side">' + side.join('') + '</aside><main class="main">' + main.join('') + '</main></div></div>';
     bindEvents();
   }
 
@@ -536,8 +610,14 @@
 
   // Open contracts are listed first (Payment Pending, Loaded, Booked); fully
   // settled "Arrived" containers sit in their own drop-down underneath.
-  function renderContainerGroupedList(containers, filterStatuses, showParty, key){
+  function containerMatchesSearch(c, q){
+    const hay = [c.orderNo, c.price, c.netWeight, c.weight, c.contNo].map(v=>String(v==null?'':v).toLowerCase());
+    return q.split(/\s+/).filter(Boolean).every(t=> hay.some(h=>h.includes(t)));
+  }
+  function renderContainerGroupedList(containers, filterStatuses, showParty, key, search){
     let filtered = containers;
+    const q = (search||'').trim().toLowerCase();
+    if(q) filtered = filtered.filter(c=>containerMatchesSearch(c,q));
     if(filterStatuses && filterStatuses.length){
       filtered = filtered.filter(c=> filterStatuses.includes(computeContainerStatus(c)));
     }
@@ -561,7 +641,7 @@
       html += '<div class="empty">No open contracts.</div>';
     }
     if(arrived.length){
-      const isOpen = state.arrivedOpen[key] || (filterStatuses||[]).includes('Arrived') || arrived.some(c=>c.id===state.openContainer);
+      const isOpen = state.arrivedOpen[key] || !!q || (filterStatuses||[]).includes('Arrived') || arrived.some(c=>c.id===state.openContainer);
       html += `<details class="arrived-group" data-arrived-key="${key}" ${isOpen?'open':''}><summary>Arrived containers <span class="count">${arrived.length}</span></summary>`;
       html += '<div class="row-list">' + arrived.map(item).join('') + '</div></details>';
     }
@@ -891,8 +971,9 @@
   // ===================== TAB: ALL OPEN CONTRACTS =====================
   function renderAllContractsTab(){
     let html = pageHeading('All Contracts', 'Every contract across all suppliers. Filter by status; settled containers are under Arrived.');
+    html += `<div class="search-box"><input type="search" id="all-search" placeholder="Search by contract no., price, net weight or container no." value="${escapeHtml(state.allSearch)}" autocomplete="off"></div>`;
     html += renderStatusChips(state.allContractsFilter, 'all-status-filter');
-    html += renderContainerGroupedList(state.containers, state.allContractsFilter, true, 'all');
+    html += renderContainerGroupedList(state.containers, state.allContractsFilter, true, 'all', state.allSearch);
     return html;
   }
 
@@ -961,6 +1042,13 @@
     if(refreshBtn) refreshBtn.addEventListener('click', ()=>{ refreshBtn.textContent='Refreshing…'; loadAll(); });
 
     app.querySelectorAll('details[data-arrived-key]').forEach(d=> d.addEventListener('toggle', ()=>{ state.arrivedOpen[d.dataset.arrivedKey] = d.open; }));
+    const sb = document.getElementById('all-search');
+    if(sb){
+      sb.addEventListener('input', ()=>{
+        state.allSearch = sb.value; render();
+        const n = document.getElementById('all-search'); n.focus(); n.setSelectionRange(n.value.length, n.value.length);
+      });
+    }
     app.querySelectorAll('[data-tab]').forEach(b=> b.addEventListener('click', ()=> setTab(b.dataset.tab)));
     app.querySelectorAll('[data-open-container]').forEach(el=> el.addEventListener('click', ()=>{
       const id = el.dataset.openContainer; state.openContainer = state.openContainer===id?null:id; render();
