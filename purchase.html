@@ -135,6 +135,33 @@
   .ledger-line .l-amt{font-variant-numeric:tabular-nums; text-align:right; width:80px;}
   .quick-actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
   .loading{color:var(--muted); padding:20px 2px; font-size:13px;}
+  .rp-toolbar{display:flex; gap:8px; max-width:1240px; margin:14px auto 10px; padding:0 10px;}
+  .report{background:#fff; max-width:1240px; margin:0 auto; border:1px solid #cfd8d2; box-shadow:0 6px 22px rgba(0,0,0,0.12); padding-bottom:22px; color:#1d2b25; font-family:Helvetica,Arial,sans-serif;}
+  .rp-band{display:flex; align-items:center; gap:22px; background:#0d5a42; color:#fff; padding:14px 18px; flex-wrap:wrap;}
+  .rp-logo{width:42px; height:42px; background:#073b2b; border:2px solid #c9a23a; color:#e6c76a; display:flex; align-items:center; justify-content:center; font-weight:700; font-family:Georgia,serif; font-size:16px;}
+  .rp-title{font-size:20px; font-weight:700; letter-spacing:0.3px;}
+  .rp-sub{font-size:12px;}
+  .rp-open{font-size:12px; font-weight:700; color:#f1d56e; margin-left:auto;}
+  .rp-stamp{font-size:11px;}
+  .rp-gold{height:5px; background:#c9a23a; margin-bottom:14px;}
+  .rp-section{margin:20px 18px 8px; font-size:13px; font-weight:700; color:#0d5a42; border-bottom:2px solid #c9a23a; padding-bottom:4px;}
+  .rp-table{width:calc(100% - 36px); margin:0 18px; border-collapse:collapse; font-size:11.5px;}
+  .rp-table th{background:#0f7050; color:#fff; text-align:left; font-size:10.5px; padding:7px 6px; border:1px solid #0d5a42; text-transform:uppercase;}
+  .rp-table td{padding:7px 6px; border:1px solid #c8d0cb; vertical-align:top;}
+  .rp-table tbody tr:nth-child(even){background:#f3f7f4;}
+  .rp-table td.n{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .rp-sum{max-width:460px;} .rp-sum td{font-size:12.5px;}
+  .rp-sum tr.rp-total td{background:#e4efe8; font-weight:700; border-top:2px solid #0d5a42;}
+  .rp-empty{margin:0 18px; padding:12px; font-size:12px; color:#6b786f; border:1px dashed #c8d0cb;}
+  @media (max-width:859px){ .report{overflow-x:auto;} .rp-table{min-width:900px;} }
+  @media print{
+    @page{size:A4 landscape; margin:8mm;}
+    body{background:#fff !important; padding:0 !important;}
+    .no-print{display:none !important;}
+    .report{box-shadow:none; border:none; max-width:none;}
+    .rp-band,.rp-table th,.rp-gold,.rp-logo,.rp-sum tr.rp-total td,.rp-table tbody tr:nth-child(even){-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    .rp-section{break-after:avoid;} .rp-table tr{break-inside:avoid;}
+  }
   .page-title{margin-bottom:16px;}
   .page-title h2{font-family:var(--font-head); font-size:19px; font-weight:600; color:var(--text);}
   .page-title p{color:var(--muted); font-size:12.5px; margin-top:2px;}
@@ -166,7 +193,7 @@
     containers: [], hisaabs: [], payments: [], suppliers: [], claims: [],
     tab: 'containers', openContainer: null, openHisaab: null,
     editingContainerId: null,
-    activePartyId: null, partySubTab: 'containers',
+    activePartyId: null, reportPartyId: null, partySubTab: 'containers',
     allContractsFilter: [], partyContainerFilter: [], arrivedOpen: {},
     loaded:false, loadError:null, needsAuth:false, authError:null
   };
@@ -382,6 +409,12 @@
       return;
     }
     paidCache = null;
+    if(state.reportPartyId && state.suppliers.find(x=>x.id===state.reportPartyId)){
+      app.innerHTML = renderPartyReport(state.reportPartyId);
+      app.querySelector('[data-report-back]').addEventListener('click', ()=>{ state.reportPartyId=null; render(); });
+      app.querySelector('[data-report-print]').addEventListener('click', ()=> window.print());
+      return;
+    }
     const parts = [];
     parts.push('<header class="top"><h1>Namo Steels — Purchase Ledger</h1><p>Containers, hisaab accounts &amp; supplier balances</p></header>');
     if(state.loadError){
@@ -468,6 +501,11 @@
     html += `<div class="ledger-line"><div class="l-desc">Material</div><div class="l-amt" style="width:auto;">${escapeHtml(c.material||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">No. of containers</div><div class="l-amt" style="width:auto;">${c.numContainers||0}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Weight</div><div class="l-amt" style="width:auto;">${containerWeightOf(c)?numW(containerWeightOf(c)):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Net weight</div><div class="l-amt" style="width:auto;">${c.netWeight?numW(c.netWeight):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Origin</div><div class="l-amt" style="width:auto;">${escapeHtml(c.origin||'—')}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">BL no.</div><div class="l-amt" style="width:auto;">${escapeHtml(c.blNo||'—')}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Arrival date</div><div class="l-amt" style="width:auto;">${c.arrivalDate?fmtDate(c.arrivalDate):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Supplier deal ID</div><div class="l-amt" style="width:auto;">${escapeHtml(c.dealId||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Container no.</div><div class="l-amt" style="width:auto;">${escapeHtml(c.contNo||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Shipping line</div><div class="l-amt" style="width:auto;">${escapeHtml(c.shippingLine||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Price</div><div class="l-amt" style="width:auto;">${c.price?escapeHtml(String(c.price))+(c.priceCurrency?' '+escapeHtml(c.priceCurrency):''):'—'}</div></div>`;
@@ -552,7 +590,9 @@
     html += '<div class="field-row"><div class="field" style="flex:2;"><label>Price</label><input name="price" type="text" placeholder="e.g. 1250, or 1250 / ton CIF" value="'+escapeHtml(editing&&editing.price?String(editing.price):'')+'"></div><div class="field" style="flex:1;"><label>Currency</label><select name="priceCurrency">' + ['USD','INR','EUR','GBP',''].map(c=>`<option value="${c}" ${editing&&editing.priceCurrency===c?'selected':''}>${c||'None'}</option>`).join('') + '</select></div></div>';
     html += '<datalist id="material-list"><option value="ALTS"><option value="AL SELF"><option value="FE SELF"><option value="PUMP"><option value="COMBO"></datalist>';
     html += '<div class="field-row"><div class="field"><label>Container no.</label><input name="contNo" placeholder="actual container number" value="'+escapeHtml(editing?editing.contNo||'':'')+'"></div><div class="field"><label>Shipping line</label><input name="shippingLine" placeholder="e.g. Maersk, MSC" value="'+escapeHtml(editing?editing.shippingLine||'':'')+'"></div></div>';
-    html += '<div class="field"><label>Weight</label><input name="weight" type="number" step="any" placeholder="once known" value="'+(editing&&editing.weight?editing.weight:'')+'"></div>';
+    html += '<div class="field-row"><div class="field"><label>Gross weight</label><input name="weight" type="number" step="any" placeholder="once known" value="'+(editing&&editing.weight?editing.weight:'')+'"></div><div class="field"><label>Net weight</label><input name="netWeight" type="number" step="any" placeholder="once known" value="'+(editing&&editing.netWeight?editing.netWeight:'')+'"></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Origin</label><input name="origin" placeholder="e.g. USA" value="'+escapeHtml(editing?editing.origin||'':'')+'"></div><div class="field"><label>BL no.</label><input name="blNo" placeholder="bill of lading no." value="'+escapeHtml(editing?editing.blNo||'':'')+'"></div></div>';
+    html += '<div class="field-row"><div class="field"><label>Arrival date</label><input name="arrivalDate" type="date" value="'+(editing&&editing.arrivalDate?editing.arrivalDate:'')+'"></div><div class="field"><label>Supplier deal ID</label><input name="dealId" placeholder="e.g. AU2104" value="'+escapeHtml(editing?editing.dealId||'':'')+'"></div></div>';
     html += '<div class="field"><label>Notes</label><textarea name="notes" placeholder="anything else about this container">'+escapeHtml(editing?editing.notes||'':'')+'</textarea></div>';
     html += '<p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Status is set automatically — Booked when created, Loaded once a container no. or weight is filled in, then Arrived (Payment Pending / Arrived) once a hisaab and payments are recorded.</p>';
     html += '<div style="display:flex;gap:8px;"><button class="primary" type="submit">'+(editing?'Update container':'Save container')+'</button>';
@@ -743,7 +783,7 @@
     const s = state.suppliers.find(x=>x.id===state.activePartyId);
     if(!s){ state.activePartyId=null; return renderPartiesTab(); }
 
-    let html = '<button class="ghost" data-back-to-parties style="margin-bottom:14px;">← All parties</button>';
+    let html = '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;"><button class="ghost" data-back-to-parties>← All parties</button><button class="primary" data-open-report="'+s.id+'" style="margin-top:0;">View party report</button></div>';
     html += `<div class="detail-head" style="margin-bottom:6px;"><h3>${escapeHtml(s.name)}</h3><div class="bal">${money(supplierNetBalance(s.id))}</div></div>`;
     html += '<div class="balance-grid">';
     html += `<div class="b-item"><div class="b-label">Container balance</div><div class="b-val">${money(supplierContainerBalance(s.id))}</div></div>`;
@@ -792,6 +832,60 @@
       }
     }
     return html;
+  }
+
+  // ===================== PARTY REPORT (printable) =====================
+  function renderPartyReport(partyId){
+    const s = state.suppliers.find(x=>x.id===partyId);
+    const mine = state.containers.filter(c=>c.supplierId===partyId).sort((a,b)=>(Number(a.seq)||0)-(Number(b.seq)||0));
+    const open = mine.filter(c=>computeContainerStatus(c)!=='Arrived');
+    const arrived = mine.filter(c=>computeContainerStatus(c)==='Arrived');
+    const openCons = open.reduce((t,c)=>t+(Number(c.numContainers)||1),0);
+    const now = new Date();
+    const stamp = now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) + ', ' + now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
+    const fd = d=> d ? new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}).replace(/ /g,'-') : '-';
+    const dash = v=> (v===undefined||v===null||v===''||v===0) ? '-' : v;
+    const cell = v=> escapeHtml(String(dash(v)));
+    const arrDate = c=>{ const h=containerHisaab(c); return c.arrivalDate || (h?h.date:''); };
+    const priceOf = c=> c.price ? String(c.price)+(c.priceCurrency?' '+c.priceCurrency:'') : '';
+    const row = (c,withMoney)=>{
+      const h = containerHisaab(c);
+      let r = `<tr><td>${cell(c.dealId)}</td><td><b>${escapeHtml(c.orderNo||('#'+c.seq))}</b></td><td>${cell(c.material)}</td><td class="n">${c.weight?numW(c.weight):'-'}</td><td class="n">${c.netWeight?numW(c.netWeight):'-'}</td><td class="n">${cell(c.numContainers)}</td><td>${cell(c.origin)}</td><td>${fd(arrDate(c))}</td><td>${cell(c.contNo)}</td><td>${cell(c.blNo)}</td><td>${cell(priceOf(c))}</td>`;
+      if(withMoney) r += `<td>${h?'#'+h.seq:'-'}</td><td class="n">${h?money(containerNet(c)):'-'}</td><td class="n">${h?money(containerPaid(c)):'-'}</td><td class="n">${h?money(containerBalance(c)):'-'}</td>`;
+      else r += `<td>${computeContainerStatus(c)}</td>`;
+      return r + '</tr>';
+    };
+    const head1 = '<th>Deal ID</th><th>Contract no.</th><th>Material</th><th>Gross wt</th><th>Net wt</th><th>Cons</th><th>Origin</th><th>Arrival date</th><th>Container no.</th><th>BL no.</th><th>Price</th>';
+    const table = (rows, extraHead, withMoney, emptyMsg)=> rows.length
+      ? `<table class="rp-table"><thead><tr>${head1}${extraHead}</tr></thead><tbody>${rows.map(c=>row(c,withMoney)).join('')}</tbody></table>`
+      : `<div class="rp-empty">${emptyMsg}</div>`;
+
+    let h = '<div class="no-print rp-toolbar"><button class="ghost" data-report-back>← Back to party</button><button class="primary" data-report-print style="margin-top:0;">Print / Save as PDF</button></div>';
+    h += '<div class="report">';
+    h += `<div class="rp-band"><div class="rp-logo">NS</div><div class="rp-title">PARTY LEDGER</div><div class="rp-sub">PARTY: <b>${escapeHtml(s.name)}</b></div><div class="rp-open">OPEN CONTRACTS: ${openCons} CONS | ${open.length} DEALS</div><div class="rp-stamp">${stamp}</div></div><div class="rp-gold"></div>`;
+
+    h += '<div class="rp-section">Open contracts</div>';
+    h += table(open, '<th>Status</th>', false, 'No open contracts.');
+
+    h += '<div class="rp-section">Arrived containers</div>';
+    h += table(arrived, '<th>Hisaab</th><th>Net payable</th><th>Paid</th><th>Balance</th>', true, 'No arrived containers yet.');
+
+    const hs = state.hisaabs.filter(x=>x.partyId===partyId).sort((a,b)=>(Number(a.seq)||0)-(Number(b.seq)||0));
+    h += '<div class="rp-section">Hisaab accounts</div>';
+    h += hs.length ? `<table class="rp-table"><thead><tr><th>Hisaab</th><th>Date</th><th>Contract no.</th><th>Container no.</th><th>Material</th><th>Weight</th><th>Amount</th><th>Advance</th><th>Finance cost</th><th>Total</th><th>INR rate</th><th>Bank charges</th><th>Net payable</th></tr></thead><tbody>${hs.map(x=>{ const c=state.containers.find(y=>y.id===x.containerId); return `<tr><td>#${x.seq}</td><td>${fd(x.date)}</td><td>${c?escapeHtml(c.orderNo||''):'-'}</td><td>${c?cell(c.contNo):'-'}</td><td>${cell(x.material)}</td><td class="n">${numW(x.weight)}</td><td class="n">${num(x.grossAmount)} ${x.rateCurrency||''}</td><td class="n">${num(x.advance)}</td><td class="n">${num(x.financeCost)}</td><td class="n">${num(x.total)}</td><td class="n">${num(x.inrRate)}</td><td class="n">${money(x.bankCharges)}</td><td class="n"><b>${money(x.netPayable)}</b></td></tr>`; }).join('')}</tbody></table>` : '<div class="rp-empty">No hisaab accounts yet.</div>';
+
+    const pays = state.payments.filter(x=>x.partyId===partyId).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    h += '<div class="rp-section">Payments made</div>';
+    h += pays.length ? `<table class="rp-table"><thead><tr><th>Date</th><th>Contract no.</th><th>Container no.</th><th>Note</th><th>Amount</th></tr></thead><tbody>${pays.map(x=>{ const c=state.containers.find(y=>y.id===x.containerId); return `<tr><td>${fd(x.date)}</td><td>${c?escapeHtml(c.orderNo||''):'General'}</td><td>${c?cell(c.contNo):'-'}</td><td>${cell(x.note)}</td><td class="n">${money(x.amount)}</td></tr>`; }).join('')}</tbody></table>` : '<div class="rp-empty">No payments recorded.</div>';
+
+    const cls = state.claims.filter(x=>x.partyId===partyId).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    h += '<div class="rp-section">Claims (tracked separately)</div>';
+    h += cls.length ? `<table class="rp-table"><thead><tr><th>Date</th><th>Contract no.</th><th>Container no.</th><th>Footnote</th><th>Claim amount</th></tr></thead><tbody>${cls.map(x=>{ const c=state.containers.find(y=>y.id===x.containerId); return `<tr><td>${fd(x.date)}</td><td>${c?escapeHtml(c.orderNo||''):'General'}</td><td>${c?cell(c.contNo):'-'}</td><td>${cell(x.note)}</td><td class="n">${money(x.amount)}</td></tr>`; }).join('')}</tbody></table>` : '<div class="rp-empty">No claims recorded.</div>';
+
+    h += '<div class="rp-section">Account summary</div>';
+    h += `<table class="rp-table rp-sum"><tbody><tr><td>Container balance (all hisaabs)</td><td class="n">${money(supplierContainerBalance(partyId))}</td></tr><tr><td>Advance given</td><td class="n">${money(supplierAdvanceBalance(partyId))}</td></tr><tr><td>Payments made</td><td class="n">${money(supplierPayments(partyId))}</td></tr><tr class="rp-total"><td>Net balance payable</td><td class="n">${money(supplierNetBalance(partyId))}</td></tr><tr><td>Claims (not included above)</td><td class="n">${money(supplierClaimBalance(partyId))}</td></tr></tbody></table>`;
+    h += '</div>';
+    return h;
   }
 
   // ===================== TAB: ALL OPEN CONTRACTS =====================
@@ -877,6 +971,7 @@
     app.querySelectorAll('[data-open-party-page]').forEach(el=> el.addEventListener('click', ()=>{
       state.activePartyId = el.dataset.openPartyPage; state.partySubTab='containers'; state.openContainer=null; state.openHisaab=null; render();
     }));
+    app.querySelectorAll('[data-open-report]').forEach(el=> el.addEventListener('click', ()=>{ state.reportPartyId = el.dataset.openReport; render(); window.scrollTo(0,0); }));
     app.querySelectorAll('[data-back-to-parties]').forEach(el=> el.addEventListener('click', ()=>{
       state.activePartyId = null; render();
     }));
@@ -961,6 +1056,8 @@
             material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0,
             price: (fd.get('price')||'').trim(), priceCurrency: fd.get('priceCurrency')||'', contNo: (fd.get('contNo')||'').trim(),
             shippingLine: (fd.get('shippingLine')||'').trim(), weight: Number(fd.get('weight'))||0,
+            netWeight: Number(fd.get('netWeight'))||0, origin: (fd.get('origin')||'').trim(), blNo: (fd.get('blNo')||'').trim(),
+            arrivalDate: fd.get('arrivalDate')||'', dealId: (fd.get('dealId')||'').trim(),
             notes: (fd.get('notes')||'').trim()
           });
         } else {
@@ -971,6 +1068,8 @@
             date, material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0,
             price: (fd.get('price')||'').trim(), priceCurrency: fd.get('priceCurrency')||'', contNo: (fd.get('contNo')||'').trim(),
             shippingLine: (fd.get('shippingLine')||'').trim(), weight: Number(fd.get('weight'))||0,
+            netWeight: Number(fd.get('netWeight'))||0, origin: (fd.get('origin')||'').trim(), blNo: (fd.get('blNo')||'').trim(),
+            arrivalDate: fd.get('arrivalDate')||'', dealId: (fd.get('dealId')||'').trim(),
             notes: (fd.get('notes')||'').trim(), dutyPaid:false, shippingPaid:false, hisaabSeq:null
           };
         }
