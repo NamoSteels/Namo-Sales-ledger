@@ -157,6 +157,7 @@
 
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   function num(n){ return (Number(n)||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  function numW(n){ return (Number(n)||0).toLocaleString('en-IN', {maximumFractionDigits:6}); }
   function money(n){ return '₹' + Math.round(Number(n)||0).toLocaleString('en-IN'); }
   function fmtDate(d){ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}); }
   function today(){ return new Date().toISOString().slice(0,10); }
@@ -364,7 +365,7 @@
     const hisaabTag = c.hisaabSeq ? `<span class="hisaab-tag">Hisaab #${c.hisaabSeq}</span>` : `<span class="hisaab-tag none">No hisaab yet</span>`;
     const subBits = [escapeHtml(c.material||'')];
     if(c.numContainers) subBits.push(c.numContainers+' cont');
-    if(c.weight) subBits.push(num(c.weight)+(typeof c.weight==='number'?' t':''));
+    if(c.weight) subBits.push(numW(c.weight));
     if(c.contNo) subBits.push(escapeHtml(c.contNo));
     if(c.shippingLine) subBits.push(escapeHtml(c.shippingLine));
     subBits.push(fmtDate(c.date));
@@ -379,10 +380,10 @@
     html += `<div class="ledger-line"><div class="l-desc">Date</div><div class="l-amt" style="width:auto;">${fmtDate(c.date)}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Material</div><div class="l-amt" style="width:auto;">${escapeHtml(c.material||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">No. of containers</div><div class="l-amt" style="width:auto;">${c.numContainers||0}</div></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">Weight</div><div class="l-amt" style="width:auto;">${c.weight?num(c.weight):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Weight</div><div class="l-amt" style="width:auto;">${c.weight?numW(c.weight):'—'}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Container no.</div><div class="l-amt" style="width:auto;">${escapeHtml(c.contNo||'—')}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Shipping line</div><div class="l-amt" style="width:auto;">${escapeHtml(c.shippingLine||'—')}</div></div>`;
-    html += `<div class="ledger-line"><div class="l-desc">Price</div><div class="l-amt" style="width:auto;">${c.price?num(c.price)+' '+(c.priceCurrency||'USD'):'—'}</div></div>`;
+    html += `<div class="ledger-line"><div class="l-desc">Price</div><div class="l-amt" style="width:auto;">${c.price?escapeHtml(String(c.price))+(c.priceCurrency?' '+escapeHtml(c.priceCurrency):''):'—'}</div></div>`;
     html += `<div class="ledger-line"><div class="l-desc">Notes</div><div class="l-amt" style="width:auto;">${escapeHtml(c.notes||'—')}</div></div>`;
     if(c.hisaabSeq){
       html += `<div class="ledger-line"><div class="l-desc">Linked hisaab</div><div class="l-amt" style="width:auto;color:var(--rust);">#${c.hisaabSeq}</div></div>`;
@@ -438,7 +439,7 @@
     html += '<div class="field"><label>Supplier</label><select name="supplierId">' + (state.suppliers.length? supplierOptions(editing?editing.supplierId:null) : '<option value="">Add a supplier first (Parties tab)</option>') + '</select></div>';
     html += '<div class="field-row"><div class="field"><label>Date</label><input name="date" type="date" value="'+(editing?editing.date:today())+'"></div><div class="field"><label>No. of containers</label><input name="numContainers" type="number" step="1" min="1" placeholder="1" value="'+(editing&&editing.numContainers?editing.numContainers:'')+'"></div></div>';
     html += '<div class="field-row"><div class="field"><label>Material</label><input name="material" list="material-list" placeholder="e.g. ALTS, AL SELF" value="'+escapeHtml(editing?editing.material||'':'')+'"></div></div>';
-    html += '<div class="field-row"><div class="field" style="flex:2;"><label>Price</label><input name="price" type="number" step="any" placeholder="agreed price" value="'+(editing&&editing.price?editing.price:'')+'"></div><div class="field" style="flex:1;"><label>Currency</label><select name="priceCurrency">' + ['USD','INR','EUR','GBP'].map(c=>`<option value="${c}" ${editing&&editing.priceCurrency===c?'selected':''}>${c}</option>`).join('') + '</select></div></div>';
+    html += '<div class="field-row"><div class="field" style="flex:2;"><label>Price</label><input name="price" type="text" placeholder="e.g. 1250, or 1250 / ton CIF" value="'+escapeHtml(editing&&editing.price?String(editing.price):'')+'"></div><div class="field" style="flex:1;"><label>Currency</label><select name="priceCurrency">' + ['USD','INR','EUR','GBP',''].map(c=>`<option value="${c}" ${editing&&editing.priceCurrency===c?'selected':''}>${c||'None'}</option>`).join('') + '</select></div></div>';
     html += '<datalist id="material-list"><option value="ALTS"><option value="AL SELF"><option value="FE SELF"><option value="PUMP"><option value="COMBO"></datalist>';
     html += '<div class="field-row"><div class="field"><label>Container no.</label><input name="contNo" placeholder="actual container number" value="'+escapeHtml(editing?editing.contNo||'':'')+'"></div><div class="field"><label>Shipping line</label><input name="shippingLine" placeholder="e.g. Maersk, MSC" value="'+escapeHtml(editing?editing.shippingLine||'':'')+'"></div></div>';
     html += '<div class="field"><label>Weight</label><input name="weight" type="number" step="any" placeholder="once known" value="'+(editing&&editing.weight?editing.weight:'')+'"></div>';
@@ -472,8 +473,15 @@
     html += '<form class="panel" id="hisaab-form">';
     html += '<div class="form-sub-title">New hisaab / account</div>';
     html += '<div class="field"><label>Container (optional)</label><select name="containerId" id="h-container"><option value="">— not linked to a container —</option>' + containerOptionsFor() + '</select></div>';
-    html += '<div class="field-row3"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Weight</label><input name="weight" id="h-weight" type="number" step="any"></div><div class="field"><label>Party</label><select name="partyId" id="h-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div></div>';
-    html += '<div class="field-row3"><div class="field"><label>Material</label><input name="material" id="h-material"></div><div class="field"><label>Rate</label><input name="rate" id="h-rate" type="number" step="any"></div><div class="field" style="max-width:80px;"><label>Currency</label><select name="rateCurrency">' + ['USD','INR','EUR','GBP'].map(c=>`<option value="${c}">${c}</option>`).join('') + '</select></div></div>';
+    html += '<div class="field-row3"><div class="field"><label>Date</label><input name="date" type="date" value="'+today()+'"></div><div class="field"><label>Weight (total)</label><input name="weight" id="h-weight" type="number" step="any"></div><div class="field"><label>Party</label><select name="partyId" id="h-party">' + (state.suppliers.length? supplierOptions() : '<option value="">Add a supplier first</option>') + '</select></div></div>';
+    html += '<label class="inline-check" style="margin-bottom:10px;"><input type="checkbox" name="isCombo" id="h-combo"> Combo container (up to 5 materials, each with its own weight &amp; rate)</label>';
+    html += '<div id="h-single-row" class="field-row"><div class="field"><label>Material</label><input name="material" id="h-material"></div><div class="field"><label>Rate</label><input name="rate" id="h-rate" type="number" step="any"></div></div>';
+    html += '<div id="h-combo-block" style="display:none;margin-bottom:10px;">';
+    for(let i=0;i<5;i++){
+      html += `<div class="field-row3" style="align-items:flex-end;"><div class="field"><label>Material ${i+1}</label><input name="cm_${i}" class="cm-mat"></div><div class="field"><label>Weight ${i+1}</label><input name="cw_${i}" class="cm-wt" type="number" step="any"></div><div class="field"><label>Rate ${i+1}</label><input name="cr_${i}" class="cm-rate" type="number" step="any"></div></div>`;
+    }
+    html += '</div>';
+    html += '<div class="field"><label>Currency</label><select name="rateCurrency">' + ['USD','INR','EUR','GBP'].map(c=>`<option value="${c}">${c}</option>`).join('') + '</select></div>';
     html += '<div class="field"><label>Amount</label><input type="text" id="h-amount-display" disabled></div>';
     html += '<div class="field-row"><div class="field"><label>Advance</label><input name="advance" id="h-advance" type="number" step="any" placeholder="0"></div><div class="field"><label>Finance cost</label><input name="financeCost" id="h-finance" type="number" step="any" placeholder="0"></div></div>';
     html += '<div class="field"><label>Total (material − advance + finance cost)</label><input type="text" id="h-total-display" disabled></div>';
@@ -551,9 +559,16 @@
     let html = '<div class="voucher">';
     html += `<div class="voucher-head"><span>Hisaab #${h.seq}</span><span>${fmtDate(h.date)}</span></div>`;
     html += `<div class="voucher-row"><span class="vr-label">Party</span><span class="vr-val">${s?escapeHtml(s.name):'—'}</span></div>`;
-    html += `<div class="voucher-row"><span class="vr-label">Weight</span><span class="vr-val">${h.weight||0}</span></div>`;
-    html += `<div class="voucher-row"><span class="vr-label">Material</span><span class="vr-val">${escapeHtml(h.material||'—')}</span></div>`;
-    html += `<div class="voucher-row"><span class="vr-label">Rate</span><span class="vr-val">${num(h.rate)} ${h.rateCurrency||'USD'}</span></div>`;
+    if(h.isCombo && h.lines && h.lines.length){
+      h.lines.forEach((l,i)=>{
+        html += `<div class="voucher-row"><span class="vr-label">${escapeHtml(l.material||('Material '+(i+1)))}</span><span class="vr-val">${numW(l.weight)} × ${num(l.rate)} = ${num(l.amount)} ${h.rateCurrency||'USD'}</span></div>`;
+      });
+      html += `<div class="voucher-row"><span class="vr-label">Total weight</span><span class="vr-val">${numW(h.weight)}</span></div>`;
+    } else {
+      html += `<div class="voucher-row"><span class="vr-label">Weight</span><span class="vr-val">${numW(h.weight)}</span></div>`;
+      html += `<div class="voucher-row"><span class="vr-label">Material</span><span class="vr-val">${escapeHtml(h.material||'—')}</span></div>`;
+      html += `<div class="voucher-row"><span class="vr-label">Rate</span><span class="vr-val">${num(h.rate)} ${h.rateCurrency||'USD'}</span></div>`;
+    }
     html += `<div class="voucher-row"><span class="vr-label">Amount</span><span class="vr-val">${num(h.grossAmount)} ${h.rateCurrency||'USD'}</span></div>`;
     html += `<div class="voucher-row"><span class="vr-label">Advance</span><span class="vr-val">${num(h.advance)}</span></div>`;
     if(Number(h.financeCost)>0){
@@ -668,6 +683,17 @@
   }
 
   // ===================== Live hisaab calc =====================
+  function readLines(get){
+    // get(name) -> raw value. Returns combo line items (only rows with a weight or rate).
+    const lines = [];
+    for(let i=0;i<5;i++){
+      const material = (get('cm_'+i)||'').trim();
+      const weight = Number(get('cw_'+i))||0, rate = Number(get('cr_'+i))||0;
+      if(!material && !weight && !rate) continue;
+      lines.push({ material, weight, rate, amount: weight*rate });
+    }
+    return lines;
+  }
   function wireHisaabCalc(hf){
     const containerSel = hf.querySelector('#h-container');
     containerSel.addEventListener('change', ()=>{
@@ -678,17 +704,31 @@
         hf.querySelector('#h-material').value = c.material || '';
         hf.querySelector('[name=date]').value = c.date || today();
         if(c.weight) hf.querySelector('#h-weight').value = c.weight;
+        if(/combo/i.test(c.material||'')){ hf.querySelector('#h-combo').checked = true; }
         refresh();
       }
     });
     const refresh = ()=>{
-      const weight = Number(hf.querySelector('#h-weight').value)||0;
-      const rate = Number(hf.querySelector('#h-rate').value)||0;
+      const isCombo = hf.querySelector('#h-combo').checked;
+      hf.querySelector('#h-single-row').style.display = isCombo ? 'none' : '';
+      hf.querySelector('#h-combo-block').style.display = isCombo ? '' : 'none';
+      const wtInput = hf.querySelector('#h-weight');
+      let weight, grossAmount;
+      if(isCombo){
+        const lines = readLines(n=> (hf.querySelector('[name='+n+']')||{}).value);
+        weight = lines.reduce((a,l)=>a+l.weight,0);
+        grossAmount = lines.reduce((a,l)=>a+l.amount,0);
+        wtInput.value = weight ? String(Math.round(weight*1e6)/1e6) : '';
+        wtInput.readOnly = true;
+      } else {
+        wtInput.readOnly = false;
+        weight = Number(wtInput.value)||0;
+        grossAmount = weight*(Number(hf.querySelector('#h-rate').value)||0);
+      }
       const advance = Number(hf.querySelector('#h-advance').value)||0;
       const financeCost = Number(hf.querySelector('#h-finance').value)||0;
       const inrRate = Number(hf.querySelector('#h-inrrate').value)||0;
       const bankCharges = Number(hf.querySelector('#h-bank').value)||0;
-      const grossAmount = weight*rate;
       const total = grossAmount - advance + financeCost;
       const inrAmount = total*inrRate;
       const netPayable = inrAmount - bankCharges;
@@ -698,6 +738,7 @@
       hf.querySelector('#h-net-display').textContent = money(netPayable);
     };
     hf.addEventListener('input', refresh);
+    hf.addEventListener('change', refresh);
     refresh();
   }
 
@@ -797,7 +838,7 @@
           data = Object.assign({}, existing, {
             supplierId: fd.get('supplierId')||'', date: fd.get('date')||today(),
             material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0,
-            price: Number(fd.get('price'))||0, priceCurrency: fd.get('priceCurrency')||'USD', contNo: (fd.get('contNo')||'').trim(),
+            price: (fd.get('price')||'').trim(), priceCurrency: fd.get('priceCurrency')||'', contNo: (fd.get('contNo')||'').trim(),
             shippingLine: (fd.get('shippingLine')||'').trim(), weight: Number(fd.get('weight'))||0,
             notes: (fd.get('notes')||'').trim()
           });
@@ -807,7 +848,7 @@
           data = {
             id: uid(), seq, orderNo: generateOrderNo(seq, date), supplierId: fd.get('supplierId')||'',
             date, material: (fd.get('material')||'').trim(), numContainers: Number(fd.get('numContainers'))||0,
-            price: Number(fd.get('price'))||0, priceCurrency: fd.get('priceCurrency')||'USD', contNo: (fd.get('contNo')||'').trim(),
+            price: (fd.get('price')||'').trim(), priceCurrency: fd.get('priceCurrency')||'', contNo: (fd.get('contNo')||'').trim(),
             shippingLine: (fd.get('shippingLine')||'').trim(), weight: Number(fd.get('weight'))||0,
             notes: (fd.get('notes')||'').trim(), dutyPaid:false, shippingPaid:false, hisaabSeq:null
           };
@@ -824,14 +865,27 @@
       hf.addEventListener('submit', async (e)=>{
         e.preventDefault();
         const fd = new FormData(hf);
-        const weight = Number(fd.get('weight'))||0, rate = Number(fd.get('rate'))||0, advance = Number(fd.get('advance'))||0;
+        const isCombo = fd.get('isCombo')==='on';
+        const comboLines = isCombo ? readLines(n=>fd.get(n)) : [];
+        let weight, rate, grossAmount, materialName;
+        if(isCombo){
+          weight = comboLines.reduce((a,l)=>a+l.weight,0);
+          grossAmount = comboLines.reduce((a,l)=>a+l.amount,0);
+          rate = weight ? grossAmount/weight : 0;
+          materialName = comboLines.map(l=>l.material).filter(Boolean).join(' + ') || 'COMBO';
+        } else {
+          weight = Number(fd.get('weight'))||0; rate = Number(fd.get('rate'))||0;
+          grossAmount = weight*rate; materialName = (fd.get('material')||'').trim();
+        }
+        const advance = Number(fd.get('advance'))||0;
         const financeCost = Number(fd.get('financeCost'))||0;
         const inrRate = Number(fd.get('inrRate'))||0, bankCharges = Number(fd.get('bankCharges'))||0;
-        const grossAmount = weight*rate, total = grossAmount-advance+financeCost, inrAmount = total*inrRate;
+        const total = grossAmount-advance+financeCost, inrAmount = total*inrRate;
         const netPayable = inrAmount - bankCharges;
         const data = {
           id: uid(), seq: nextHisaabSeq(), containerId: fd.get('containerId')||null, partyId: fd.get('partyId'),
-          date: fd.get('date')||today(), weight, material: (fd.get('material')||'').trim(), rate,
+          date: fd.get('date')||today(), weight, material: materialName, rate,
+          isCombo, lines: comboLines,
           rateCurrency: fd.get('rateCurrency')||'USD', grossAmount, advance, financeCost, total, inrRate, inrAmount, bankCharges, netPayable
         };
         if(!data.partyId){ alert('Please select a party.'); return; }
