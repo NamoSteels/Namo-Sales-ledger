@@ -278,7 +278,7 @@
   function numW(n){ return (Number(n)||0).toLocaleString('en-IN', {maximumFractionDigits:6}); }
   function money(n){ return '₹' + Math.round(Number(n)||0).toLocaleString('en-IN'); }
   function fmtDate(d){ if(!d) return '—'; const dt=new Date(d); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}); }
-  function today(){ return new Date().toISOString().slice(0,10); }
+  function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
   const API_URL = 'https://script.google.com/macros/s/AKfycbzODOIf1Imymd9LR2Hu9NQ-LrGmcVoT-TVEdOyS-dXLYjU1efcNjJSL09aESkGRs2_7nA/exec';
